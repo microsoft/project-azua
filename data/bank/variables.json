@@ -1,0 +1,173 @@
+{
+    "metadata_variables": [],
+    "variables": [
+        {
+            "id": 0,
+            "lower": 17.0,
+            "name": "age",
+            "query": true,
+            "type": "continuous",
+            "upper": 98.0
+        },
+        {
+            "id": 1,
+            "lower": 0,
+            "name": "job",
+            "query": true,
+            "type": "categorical",
+            "upper": 11
+        },
+        {
+            "id": 2,
+            "lower": 0,
+            "name": "marital",
+            "query": true,
+            "type": "categorical",
+            "upper": 3
+        },
+        {
+            "id": 3,
+            "lower": 0,
+            "name": "education",
+            "query": true,
+            "type": "categorical",
+            "upper": 7
+        },
+        {
+            "id": 4,
+            "lower": 0,
+            "name": "default",
+            "query": true,
+            "type": "categorical",
+            "upper": 2
+        },
+        {
+            "id": 5,
+            "lower": 0,
+            "name": "housing",
+            "query": true,
+            "type": "categorical",
+            "upper": 2
+        },
+        {
+            "id": 6,
+            "lower": 0,
+            "name": "loan",
+            "query": true,
+            "type": "categorical",
+            "upper": 2
+        },
+        {
+            "id": 7,
+            "lower": 0,
+            "name": "contact",
+            "query": true,
+            "type": "binary",
+            "upper": 1
+        },
+        {
+            "id": 8,
+            "lower": 2,
+            "name": "month",
+            "query": true,
+            "type": "categorical",
+            "upper": 11
+        },
+        {
+            "id": 9,
+            "lower": 0,
+            "name": "day_of_week",
+            "query": true,
+            "type": "categorical",
+            "upper": 4
+        },
+        {
+            "id": 10,
+            "lower": 0.0,
+            "name": "duration",
+            "query": true,
+            "type": "continuous",
+            "upper": 4918.0
+        },
+        {
+            "id": 11,
+            "lower": 1.0,
+            "name": "campaign",
+            "query": true,
+            "type": "continuous",
+            "upper": 56.0
+        },
+        {
+            "id": 12,
+            "lower": 0.0,
+            "name": "pdays",
+            "query": true,
+            "type": "continuous",
+            "upper": 999.0
+        },
+        {
+            "id": 13,
+            "lower": 0.0,
+            "name": "previous",
+            "query": true,
+            "type": "continuous",
+            "upper": 7.0
+        },
+        {
+            "id": 14,
+            "lower": 0,
+            "name": "poutcome",
+            "query": true,
+            "type": "categorical",
+            "upper": 2
+        },
+        {
+            "id": 15,
+            "lower": -3.4,
+            "name": "emp.var.rate",
+            "query": true,
+            "type": "continuous",
+            "upper": 1.4
+        },
+        {
+            "id": 16,
+            "lower": 92.201,
+            "name": "cons.price.idx",
+            "query": true,
+            "type": "continuous",
+            "upper": 94.767
+        },
+        {
+            "id": 17,
+            "lower": -50.8,
+            "name": "cons.conf.idx",
+            "query": true,
+            "type": "continuous",
+            "upper": -26.9
+        },
+        {
+            "id": 18,
+            "lower": 0.634,
+            "name": "euribor3m",
+            "query": true,
+            "type": "continuous",
+            "upper": 5.045
+        },
+        {
+            "id": 19,
+            "lower": 4963.6,
+            "name": "nr.employed",
+            "query": true,
+            "type": "continuous",
+            "upper": 5228.1
+        },
+        {
+            "id": 20,
+            "lower": 0.0,
+            "name": "y",
+            "query": false,
+            "type": "continuous",
+            "upper": 1.0
+        }
+    ]
+}

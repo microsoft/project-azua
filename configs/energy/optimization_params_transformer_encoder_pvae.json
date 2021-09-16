@@ -1,0 +1,62 @@
+[
+	{
+		"name": "training_learning_rate",
+		"type": "choice",
+		"value_type": "float",
+		"values": [1e-4, 3e-4, 1e-5]
+	},
+	{
+		"name": "model_kl_coefficient",
+		"type": "range",
+		"value_type": "float",
+		"bounds": [0, 1]
+	},
+	{
+		"name": "model_num_heads",
+		"type": "choice",
+		"value_type": "int",
+		"values": [1, 2, 4, 8]
+	},
+	{
+		"name": "model_num_blocks",
+		"type": "choice",
+		"value_type": "int",
+		"values": [1, 2, 4, 8]
+	},
+	{
+		"name": "model_num_seed_vectors",
+		"type": "choice",
+		"value_type": "int",
+		"values": [1, 2, 4, 8]
+	},
+	{
+		"name": "model_transformer_embedding_dim",
+		"type": "choice",
+		"value_type": "int",
+		"values": [16, 32, 64, 128, 256]
+	},
+	{
+		"name": "model_multihead_init_type",
+		"type": "choice",
+		"value_type": "str",
+		"values": ["kaiming", "xavier"]
+	},
+	{
+		"name": "model_use_layer_norm",
+		"type": "choice",
+		"value_type": "int",
+		"values": [0, 1]
+	},
+	{
+		"name": "model_elementwise_transform_type",
+		"type": "choice",
+		"value_type": "str",
+		"values": ["single", "double"]
+	},
+	{
+		"name": "model_use_elementwise_transform_pma",
+		"type": "choice",
+		"value_type": "int",
+		"values": [0, 1]
+	}
+]

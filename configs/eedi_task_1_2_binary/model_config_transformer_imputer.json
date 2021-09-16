@@ -1,0 +1,14 @@
+{
+    "model_hyperparams": {
+        "embedding_dim": 10
+    },
+    "training_hyperparams": {
+        "epochs": 100,
+        "iterations": -1,
+        "batch_size": 200,
+        "learning_rate": 1e-4,
+        "max_p_train_dropout": 0.99,
+        "early_stopping_patience_epochs": null,
+        "rewind_to_best_epoch": false
+    }
+}

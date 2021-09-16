@@ -1,0 +1,77 @@
+{
+    "metadata_variables": [],
+    "variables": [
+        {
+            "id": 0,
+            "lower": 102.0,
+            "name": "Cement",
+            "query": true,
+            "type": "continuous",
+            "upper": 540.0
+        },
+        {
+            "id": 1,
+            "lower": 0.0,
+            "name": "Blast",
+            "query": true,
+            "type": "continuous",
+            "upper": 359.4
+        },
+        {
+            "id": 2,
+            "lower": 0.0,
+            "name": "Fly Ash",
+            "query": true,
+            "type": "continuous",
+            "upper": 195.0
+        },
+        {
+            "id": 3,
+            "lower": 121.8,
+            "name": "Water",
+            "query": true,
+            "type": "continuous",
+            "upper": 247.0
+        },
+        {
+            "id": 4,
+            "lower": 0.0,
+            "name": "Superplasticizer",
+            "query": true,
+            "type": "continuous",
+            "upper": 32.2
+        },
+        {
+            "id": 5,
+            "lower": 801.0,
+            "name": "Coarse Agg",
+            "query": true,
+            "type": "continuous",
+            "upper": 1145.0
+        },
+        {
+            "id": 6,
+            "lower": 594.0,
+            "name": "Fine Agg",
+            "query": true,
+            "type": "continuous",
+            "upper": 992.6
+        },
+        {
+            "id": 7,
+            "lower": 1.0,
+            "name": "Age",
+            "query": true,
+            "type": "continuous",
+            "upper": 365.0
+        },
+        {
+            "id": 8,
+            "lower": 2.33,
+            "name": "Concrete Strength",
+            "query": false,
+            "type": "continuous",
+            "upper": 82.6
+        }
+    ]
+}

@@ -1,0 +1,117 @@
+{
+    "metadata_variables": [],
+    "variables": [
+        {
+            "id": 0,
+            "lower": 0.00632,
+            "name": "CRIM",
+            "query": true,
+            "type": "continuous",
+            "upper": 88.9762
+        },
+        {
+            "id": 1,
+            "lower": 0.0,
+            "name": "ZN",
+            "query": true,
+            "type": "continuous",
+            "upper": 100.0
+        },
+        {
+            "id": 2,
+            "lower": 0.46,
+            "name": "INDUS",
+            "query": true,
+            "type": "continuous",
+            "upper": 27.74
+        },
+        {
+            "id": 3,
+            "lower": 0,
+            "name": "CHAS",
+            "query": true,
+            "type": "binary",
+            "upper": 1
+        },
+        {
+            "id": 4,
+            "lower": 0.385,
+            "name": "NOX",
+            "query": true,
+            "type": "continuous",
+            "upper": 0.871
+        },
+        {
+            "id": 5,
+            "lower": 3.561,
+            "name": "RM",
+            "query": true,
+            "type": "continuous",
+            "upper": 8.78
+        },
+        {
+            "id": 6,
+            "lower": 2.9,
+            "name": "AGE",
+            "query": true,
+            "type": "continuous",
+            "upper": 100.0
+        },
+        {
+            "id": 7,
+            "lower": 1.1296,
+            "name": "DIS",
+            "query": true,
+            "type": "continuous",
+            "upper": 12.1265
+        },
+        {
+            "id": 8,
+            "lower": 1.0,
+            "name": "RAD",
+            "query": true,
+            "type": "continuous",
+            "upper": 24.0
+        },
+        {
+            "id": 9,
+            "lower": 187.0,
+            "name": "TAX",
+            "query": true,
+            "type": "continuous",
+            "upper": 711.0
+        },
+        {
+            "id": 10,
+            "lower": 12.6,
+            "name": "PTRATIO",
+            "query": true,
+            "type": "continuous",
+            "upper": 22.0
+        },
+        {
+            "id": 11,
+            "lower": 0.32,
+            "name": "B",
+            "query": true,
+            "type": "continuous",
+            "upper": 396.9
+        },
+        {
+            "id": 12,
+            "lower": 1.73,
+            "name": "LSTAT",
+            "query": true,
+            "type": "continuous",
+            "upper": 37.97
+        },
+        {
+            "id": 13,
+            "lower": 5.0,
+            "name": "MEDV",
+            "query": false,
+            "type": "continuous",
+            "upper": 50.0
+        }
+    ]
+}

@@ -1,0 +1,77 @@
+{
+    "metadata_variables": [],
+    "variables": [
+        {
+            "id": 0,
+            "lower": -1.57,
+            "name": "theta1",
+            "query": true,
+            "type": "continuous",
+            "upper": 1.57
+        },
+        {
+            "id": 1,
+            "lower": -1.57,
+            "name": "theta2",
+            "query": true,
+            "type": "continuous",
+            "upper": 1.57
+        },
+        {
+            "id": 2,
+            "lower": -1.57,
+            "name": "theta3",
+            "query": true,
+            "type": "continuous",
+            "upper": 1.57
+        },
+        {
+            "id": 3,
+            "lower": -1.57,
+            "name": "theta4",
+            "query": true,
+            "type": "continuous",
+            "upper": 1.57
+        },
+        {
+            "id": 4,
+            "lower": -1.57,
+            "name": "theta5",
+            "query": true,
+            "type": "continuous",
+            "upper": 1.57
+        },
+        {
+            "id": 5,
+            "lower": -1.57,
+            "name": "theta6",
+            "query": true,
+            "type": "continuous",
+            "upper": 1.57
+        },
+        {
+            "id": 6,
+            "lower": -1.57,
+            "name": "theta7",
+            "query": true,
+            "type": "continuous",
+            "upper": 1.57
+        },
+        {
+            "id": 7,
+            "lower": -1.57,
+            "name": "theta8",
+            "query": true,
+            "type": "continuous",
+            "upper": 1.57
+        },
+        {
+            "id": 8,
+            "lower": 0.0402,
+            "name": "y",
+            "query": false,
+            "type": "continuous",
+            "upper": 1.46
+        }
+    ]
+}

@@ -1,0 +1,9 @@
+{
+    "data_source": "data/eedi_task_3_4_binary/all.csv",
+    "output": "data/eedi_task_3_4_binary/test_imputed.csv",
+    "dataset_type": "sparse",
+    "hyperparameters":
+    {
+        "sample_count": 50
+    }
+}

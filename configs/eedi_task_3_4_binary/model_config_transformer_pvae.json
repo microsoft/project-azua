@@ -1,0 +1,9 @@
+{
+    "model_hyperparams": {
+       "use_isab": true,
+       "num_inducing_points": 32
+    },
+    "training_hyperparams": {
+       "batch_size": 200
+    }
+ }

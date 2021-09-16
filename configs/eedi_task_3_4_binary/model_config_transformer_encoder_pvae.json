@@ -1,0 +1,14 @@
+{
+   "model_hyperparams": {
+      "set_embedding_dim": 50,
+      "latent_dim": 50,
+      "encoder_layers": [50, 20],
+      "decoder_layers": [20, 50],
+      "kl_coefficient": 0.1,
+      "use_isab": true,
+      "num_inducing_points": 32
+   },
+   "training_hyperparams": {
+      "batch_size": 200
+   }
+}

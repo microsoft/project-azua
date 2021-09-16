@@ -1,0 +1,7 @@
+{
+    "dataset_format": "sparse_csv",
+    "use_predefined_dataset": false,
+    "test_fraction": 0.1,
+    "val_fraction": 0.1,
+    "random_seed": [0]
+}

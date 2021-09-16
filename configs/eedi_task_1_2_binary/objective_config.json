@@ -1,0 +1,8 @@
+{
+    "sample_count": 5,
+    "use_vamp_prior": false,
+    "imputation_method": null,
+    "similarity_metric": "topics", 
+    "max_steps": 10,
+    "binoculars_method": "rewards"
+}

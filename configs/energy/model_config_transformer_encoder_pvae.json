@@ -1,0 +1,6 @@
+{
+  "model_hyperparams": {
+    "kl_coefficient": 0.1
+  },
+  "training_hyperparams": {}
+}

@@ -1,0 +1,17 @@
+{
+    "sample_count": 50,
+    "batch_size": 50,
+    "use_vamp_prior": false,
+    "use_model": true,
+    "imputation_method": null,
+    "similarity_metric": "topics", 
+    "max_steps": 3,
+    "binoculars_sampling": false,
+    "binoculars_method": "rewards",
+    "dpp_binoculars": true,
+    "size_DPP": 200,
+    "n_samples_glasses": 1,
+    "data_dir": "data/eedi_task_3_4_binary",
+    "delta": 0.2,
+    "aggregate_values": false
+}

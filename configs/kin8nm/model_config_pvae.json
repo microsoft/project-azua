@@ -1,0 +1,12 @@
+{
+    "model_hyperparams": {
+        "set_embedding_multiply_weights": false
+    },
+    "training_hyperparams": {
+        "epochs": 30000,
+        "learning_rate": 1e-4,
+        "rewind_to_best_epoch": true,
+        "early_stopping_patience_epochs": 3000,
+        "score_imputation": true
+    }
+}

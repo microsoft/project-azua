@@ -1,0 +1,85 @@
+{
+    "metadata_variables": [],
+    "variables": [
+        {
+            "id": 0,
+            "lower": 0.62,
+            "name": "Relative Compactness",
+            "query": true,
+            "type": "continuous",
+            "upper": 0.98
+        },
+        {
+            "id": 1,
+            "lower": 514.5,
+            "name": "Surface Area",
+            "query": true,
+            "type": "continuous",
+            "upper": 808.5
+        },
+        {
+            "id": 2,
+            "lower": 245.0,
+            "name": "Wall Area",
+            "query": true,
+            "type": "continuous",
+            "upper": 416.5
+        },
+        {
+            "id": 3,
+            "lower": 110.25,
+            "name": "Roof Area",
+            "query": true,
+            "type": "continuous",
+            "upper": 220.5
+        },
+        {
+            "id": 4,
+            "lower": 3.5,
+            "name": "Overall Height",
+            "query": true,
+            "type": "continuous",
+            "upper": 7.0
+        },
+        {
+            "id": 5,
+            "lower": 2.0,
+            "name": "Orientation",
+            "query": true,
+            "type": "continuous",
+            "upper": 5.0
+        },
+        {
+            "id": 6,
+            "lower": 0.0,
+            "name": "Glazing Area",
+            "query": true,
+            "type": "continuous",
+            "upper": 0.4
+        },
+        {
+            "id": 7,
+            "lower": 0.0,
+            "name": "Glazing Area Distribution",
+            "query": true,
+            "type": "continuous",
+            "upper": 5.0
+        },
+        {
+            "id": 8,
+            "lower": 6.01,
+            "name": "Heating Load",
+            "query": false,
+            "type": "continuous",
+            "upper": 43.1
+        },
+        {
+            "id": 9,
+            "lower": 10.9,
+            "name": "Cooling Load",
+            "query": false,
+            "type": "continuous",
+            "upper": 48.03
+        }
+    ]
+}
