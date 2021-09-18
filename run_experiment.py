@@ -77,20 +77,12 @@ def get_parser() -> argparse.ArgumentParser:
             "grape",
             "deep_matrix_factorization",
             "vicause",
-            "flow_vicause_param",
-            "flow_vicause_inf",
             "min_imputing",
             "mean_imputing",
             "zero_imputing",
             "majority_vote",
             "mice",
             "missforest",
-            "pc",
-            "notears_linear",
-            "notears_mlp",
-            "notears_sob",
-            "grandag",
-            "icalingam",
         ],
         help=textwrap.dedent(
             """Type of model to train.
@@ -146,20 +138,12 @@ def get_parser() -> argparse.ArgumentParser:
                 The value that replaces NaN can be assigned in missing_fill_val in the training_hyperparams of the model config file. 
                 Does not work with active learning.
             vicause: Simultaneous missing value imputation and causal discovery using neural relational inference.
-            flow_vicause_inf: Causal discovery using flow based model while doing approximate inference over the adjacency matrix.
-            flow_vicause_param: Like flow_vicause but treating the weighted adjacency as a parameter.
             min_imputing: Impute missing values using the minimum value for the corresponding variable.
             mean_imputing: Impute missing values using the mean observed value for the corresponding variable.
             zero_imputing: Impute missing values using the value 0.
             majority_vote: Impute missing values using the most common observed value for the feature.
             mice: Impute missing values using the iterative method Multiple Imputation by Chained Equations (MICE).
             missforest: Impute missing values using the iterative random forest method MissForest.
-            notears_linear: Linear version of notears algorithm for causal discovery (https://arxiv.org/abs/1803.01422).
-            notears_mlp: Nonlinear version (MLP) of notears algorithm for causal discovery (https://arxiv.org/abs/1909.13189).
-            notears_sob: Nonlinear version (Sobolev) of notears algorithm for causal discovery (https://arxiv.org/abs/1909.13189).
-            grandag: GraNDAG algorithm for causal discovery using MLP as nonlinearities (https://arxiv.org/abs/1906.02226).
-            pc: PC algorithm for causal discovery (https://arxiv.org/abs/math/0510436).
-            icalingam: ICA based causal discovery (https://dl.acm.org/doi/10.5555/1248547.1248619).
             """
         ),
     )
@@ -192,24 +176,10 @@ def get_parser() -> argparse.ArgumentParser:
             "eddi_rowwise",
             "rand",
             "sing",
-            "ei",
-            "nm_ei",
-            "b_ei",
-            "k_ei",
-            "bin",
-            "gls",
-            "rand_im",
             "variance",
             "all",
         ],
-        help="""Run active learning after train and test. 
-                                ei = expected improvement, 
-                                nm_ei = non myopic ei,
-                                b_ei = batch ei
-                                k_ei = k selection with ei
-                                bin = binoculars algorithm
-                                gls = glasses algorithm 
-                                rand_im = random with imputation""",
+        help="""Run active learning after train and test""",
     )
     parser.add_argument(
         "--users_to_plot", "-up", default=[0], nargs="+", help="Indices of users to plot info gain bar charts for."

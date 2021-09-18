@@ -1,4 +1,4 @@
-name: project-azua
+name: azua
 channels:
   - pytorch
   - defaults
