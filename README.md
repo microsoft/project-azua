@@ -19,14 +19,16 @@ for research development in the research communities, and commercial usages by d
 
 If you have used the models in our code base, please consider to cite the corresponding paper:
 
-1, **(PVAE and information acquisition)** Chao Ma, Sebastian Tschiatschek, Konstantina Palla, Jose Miguel Hernandez-Lobato, Sebastian Nowozin, and Cheng Zhang. "EDDI: Efficient Dynamic Discovery of High-Value Information with Partial VAE." In International Conference on Machine Learning, pp. 4234-4243. PMLR, 2019.
+[1], **(PVAE and information acquisition)** Chao Ma, Sebastian Tschiatschek, Konstantina Palla, Jose Miguel Hernandez-Lobato, Sebastian Nowozin, and Cheng Zhang. "EDDI: Efficient Dynamic Discovery of High-Value Information with Partial VAE." In International Conference on Machine Learning, pp. 4234-4243. PMLR, 2019.
 
-2, **(VAEM)** Chao Ma, Sebastian Tschiatschek, Richard Turner, José Miguel Hernández-Lobato, and Cheng Zhang. "VAEM: a Deep Generative Model for Heterogeneous Mixed Type Data." Advances in Neural Information Processing Systems 33 (2020).
+[2], **(VAEM)** Chao Ma, Sebastian Tschiatschek, Richard Turner, José Miguel Hernández-Lobato, and Cheng Zhang. "VAEM: a Deep Generative Model for Heterogeneous Mixed Type Data." Advances in Neural Information Processing Systems 33 (2020).
 
-3, **(VICause)** Pablo Morales-Alvarez, Angus Lamb, Simon Woodhead, Simon Peyton Jones, Miltos Allamanis, and Cheng Zhang and Cheng Zhang, "VICAUSE: Simultaneous missing value imputation and causal discovery",
+[3], **(VICause)** Pablo Morales-Alvarez, Angus Lamb, Simon Woodhead, Simon Peyton Jones, Miltos Allamanis, and Cheng Zhang, "VICAUSE: Simultaneous missing value imputation and causal discovery",
 ICML 2021 workshop on the Neglected Assumptions in Causal Inference
 
-4, **(Eedi dataset)** Zichao Wang, Angus Lamb, Evgeny Saveliev, Pashmina Cameron, Yordan Zaykov, Jose Miguel Hernandez-Lobato, Richard E. Turner et al. "Results and Insights from Diagnostic Questions: The NeurIPS 2020 Education Challenge." arXiv preprint arXiv:2104.04034 (2021).
+[4], **(Eedi dataset)** Zichao Wang, Angus Lamb, Evgeny Saveliev, Pashmina Cameron, Yordan Zaykov, Jose Miguel Hernandez-Lobato, Richard E. Turner et al. "Results and Insights from Diagnostic Questions: The NeurIPS 2020 Education Challenge." arXiv preprint arXiv:2104.04034 (2021).
+
+[5], **(CORGI:)** Jooyeon Kim, Angus Lamb, Simon Woodhead, Simon Pyton Jones, Cheng Zhang, and Miltiadis Allamanis. CORGI: Content-Rich Graph Neural Networks with Attention. In GReS: Workshop on Graph Neural Networks for Recommendation and Search, 2021
 
 ### Resources
 
@@ -37,23 +39,22 @@ For a more in-depth technical introduction, checkout [our ICML 2020 tutorial](ht
 
 Azua has there core functionalities: missing data imputation, active information acquisition, and causal discovery. 
 
-**TODO**: Add image
+![AZUA](Azua%20Image.jpg)
 
-### 1.1. Missing data imputation (MDI)
+### 1.1. Missing Value Prediction (MVP)
 
 In many real-life scenarios, we will need to make decisions under incomplete information. Therefore, it is crucial to 
-make accurate "guesses" regarding the missing information. To this end, Azua provides state-of-the-art missing
-data imputation methods based on deep learning algorithms. These methods are able to learn from complete data, and then 
+make accurate estimates regarding the missing information. To this end, Azua provides state-of-the-art missing
+value prediction methods based on deep learning algorithms. These methods are able to learn from incomplete data, and then 
 perform missing value imputation. Instead of producing only one single values for missing entries
 as in common softwares, most of our methods are able to return multiple imputation values, which provide valuable 
-information of imputation uncertainty.  
+information of imputation uncertainty. We work with data with same type [1],  as well as mixed type data and different 
+missing patterns [2]. 
 
-**TODO**: should we add description of different split mode of data imputation here? (element vs row)
-
-### 1.2. Personalized active information acquisition (PIA)
+### 1.2. Personalized active information acquisition/Next best question (NBQ)
 
 Azua can not only be used as a powerful data imputation tool, but also as an engine
-to actively acquire valuable information. Given an incomplete data instance, Azua is able to suggest which unobserved 
+to actively acquire valuable information [1]. Given an incomplete data instance, Azua is able to suggest which unobserved 
 variable is the most informative one (subject to the specific data instance and the task) to collect, using 
 information-theoretic approaches. This allows the users to focus on collecting only the most important information, 
 and thus make decisions with minimum amount of data. 
@@ -69,8 +70,6 @@ structures under incomplete information is difficult. Azua provide state-of-the-
  which is able to tackle missing value imputation and causal discovery problems at the same time.
 
 ## 2. Getting started
-
-**TODO (MK)**: Make it shorter, remove unnecessary details
 
 ### Set-up Python environement
 
@@ -88,105 +87,178 @@ And to activate the environment run
 conda activate azua
 ```
 
+### Download dataset
+
+You need to download the dataset you want to use for your experiment, and put it under relevant *data/*'s subdirectory e.g. putting *yahoo* dataset under *data/yahoo* directory. For the list of the supported datasets, please refer to [the Supported datasets section](#supported-datasets).
+
+For some of the UCI dataset, you can use *download_dataset.py* script for downloading the dataset e.g.:
+```bash
+python download_dataset.py boston
+```
+
 ### Run experiment 
 
-[`run_experiment.py`](run_experiment.py) script runs any combination of model training, imputation and active learning.
-
-**TODO (MK)**: Explain how to get the dataset
-
-The simplest way to run this script is using an existing dataset:
-e.g.
+[`run_experiment.py`](run_experiment.py) script runs any combination of model training, imputation and active learning. An example of running experiment is:
 
 ```bash
-python run_experiment.py boston -i -a eddi rand
+python run_experiment.py boston -mt pvae -i -a eddi rand
 ```
-In this example, we train a PVAE model on the Boston Housing dataset, evaluate the imputation performance on the test
-set (the -i option) and compare the sequential feature acquisition performance between the EDDI policy and random policy.
 
-To run on sparse-format data, where the dataset rows are of the form `(row_id, column_id, value)`, as is common in 
-recommender system data, specify the `dataset_format` as `"sparse_csv"` in
-`configs/[dataset_name]/dataset_config.json`.
-
-To overwrite config values, specify model config (`-m`), train config (`-t`), imputation config (`-ic`), or objective 
-config (`-oc`). These should be JSON files containing values to override from the default values found first in 
-`configs/defaults` and then in `configs/[dataset_name]`.
-e.g.
+In this example, we train a PVAE model (i.e. "*-mt*" parameter) on the Boston Housing dataset (i.e. first parameer), evaluate the imputation performance on the test set (i.e. "*-i*" parameter) and compare the sequential feature acquisition performance between the EDDI policy and random policy (i.e. "*-a*" parameter). For more information on running experiments, available parameters etc., please run the following command:
 
 ```bash
-python run_experiment.py boston -m configs/model_config_sweep.json
+python run_experiment.py --help
 ```
 
-Other useful options include:
-
-* `-o`: change the output directory. This defaults to `./runs`
-* `-n`: give a name to the ouput folder. This defaults to `./runs/$current_datetime`, but giving a
-  name overrides to `./runs/$name_$current_datetime`.
-* `-d`: the data directory. Defaults to `./data`.
+We also provide more examples of running different experiments in the section below.
 
 ## 3. Model overview
 
-Below we summarize the list of models currently available in Azua, their descriptions, functionalities (MDI = missing 
-data imputation, PIA = personalized information acquisition, CD = Causal discovery), and an example code that shows how 
+Below we summarize the list of models currently available in Azua, their descriptions, functionalities (**MVP = missing 
+value prediction, NBQ = personalized information acquisition/next best quesiton, CD = Causal discovery**), and an example code that shows how 
 to run the model (which will also reproduce one experiment from the paper). 
 
 Model | Description | Functionalities | Example usage 
 --- | --- | --- | --- 
-[Partial VAE (PVAE)](models/partial_vae.py) | An extension of VAEs for partially observed data. See [our paper](https://arxiv.org/abs/1809.11142). |  MDI, PIA | `python run_experiment.py boston -mt pvae -a eddi rand`
-[VAE Mixed (VAEM)](models/vae_mixed.py) | An extension of PVAE for heterogeneous mixed type data. See [our paper](https://arxiv.org/abs/1809.11142). | MDI, PIA | `python run_experiment.py bank -mt vaem_predictive -a sing` 
-[MNAR Partial VAE (MNAR-PVAE)](models/mnar_pvae.py) | An extension of VAE that handles missing-not-at-random (MNAR) data. More details in the future. | MDI, PIA | `python run_experiment.py yahoo -mt mnar_pvae -i` 
-[Bayesian Partial VAE (PVAE)](models/bayesian_pvae.py) | **TODO**: short info + link to paper | MDI, PIA | **TODO**: example usage to reproduce one experiment from the paper 
-[Transformer PVAE](models/transformer_pvae.py) | A PVAE in which the encoder and decoder contain transformers. See [our paper](**TODO**)| MDI, PIA | `python run_experiment.py boston -mt transformer_pvae -a eddi rand`
-[Transformer encoder PVAE](models/transformer_encoder_pvae.py) | A PVAE in which the encoder contains a transformer. See [our paper](**TODO**) | MDI, PIA | `python run_experiment.py boston -mt transformer_encoder_pvae -a eddi rand`
-[Transformer imputer/Rupert](models/transformer_imputer.py) | A simple transformer model. See [our paper](**TODO**) | MDI, PIA | `python run_experiment.py boston -mt transformer_imputer -a variance rand`
-[VICause](models/vicause.py) | Causal discovery from data with missing features and imputation. [link to paper](https://www.microsoft.com/en-us/research/publication/vicause-simultaneous-missing-value-imputation-and-causal-discovery/). | MDI, PIA, CD | **TODO**: example usage to reproduce one experiment from the paper 
-[CoRGi](models/corgi.py) |  GNN-based imputation with emphasis on item-related data based on [Kim et al.](https://toappear) | MDI | **TODO**: example usage to reproduce one experiment from the paper 
-[Graph Convolutional Network (GCN)](models/graph_convolutional_network.py) |  GNN-based imputation based on [Kipf et al.](https://arxiv.org/abs/1609.02907) | MDI | **TODO**: example usage to reproduce one experiment from the paper 
-[GRAPE](models/grape.py) |  GNN-based imputation based on [You et al.](https://snap.stanford.edu/grape/) | MDI | **TODO**: example usage to reproduce one experiment from the paper 
-[Graph Convolutional Matrix Completion (GC-MC)](models/gcmc.py) |   GNN-based imputation based on [van den Berg et al.](https://arxiv.org/abs/1706.02263) | MDI | **TODO**: example usage to reproduce one experiment from the paper 
-[GraphSAGE](models/graphsage.py) |  GNN-based imputation based on [Hamilton et al.](https://proceedings.neurips.cc/paper/2017/hash/5dd9db5e033da9c6fb5ba83c7a7ebea9-Abstract.html) | MDI | **TODO**: example usage to reproduce one experiment from the paper 
-[Graph Attention Network (GAT)](models/graph_attention_network.py) | Attention-based GNN imputation based on [Veličković et al.](https://arxiv.org/abs/1710.10903) | MDI | **TODO**: example usage to reproduce one experiment from the paper 
-[Mean imputing](baselines/mean_imputing.py) | **TODO**: short info + link to paper | **TODO**: functionalities | **TODO**: example usage to reproduce one experiment from the paper 
-[Zero imputing](baselines/zero_imputing.py) | **TODO**: short info + link to paper | **TODO**: functionalities | **TODO**: example usage to reproduce one experiment from the paper 
-[Min imputing](baselines/min_imputing.py) | **TODO**: short info + link to paper | **TODO**: functionalities | **TODO**: example usage to reproduce one experiment from the paper 
-[Majority vote](baselines/majority_vote.py) | **TODO**: short info + link to paper | **TODO**: functionalities | **TODO**: example usage to reproduce one experiment from the paper 
-[MICE](baselines/mice.py) | **TODO**: short info + link to paper | **TODO**: functionalities | **TODO**: example usage to reproduce one experiment from the paper 
-[MissForest](baselines/missforest.py) | **TODO**: short info + link to paper | **TODO**: functionalities | **TODO**: example usage to reproduce one experiment from the paper 
-
-**TODO**: Should we list here all Transformer models too?
-
-**TODO**: Should we list here DMF? Should we list here BNN?
+[Partial VAE (PVAE)](models/partial_vae.py)                                | An extension of VAEs for <br /> partially observed data.  <br /> See [our paper](http://proceedings.mlr.press/v97/ma19c.html). |  MVP, NBQ | `python run_experiment.py boston -mt pvae -a eddi rand`
+[VAE Mixed (VAEM)](models/vae_mixed.py)                                    | An extension of PVAE for <br /> heterogeneous mixed type data.  <br /> See [our paper](https://papers.nips.cc/paper/2020/hash/8171ac2c5544a5cb54ac0f38bf477af4-Abstract.html). | MVP, NBQ | `python run_experiment.py bank -mt vaem_predictive -a sing` 
+[MNAR Partial VAE (MNAR-PVAE)](models/mnar_pvae.py)                        | An extension of VAE that <br /> handles missing-not-at-random  <br /> (MNAR) data.  <br /> More details in the future. | MVP, NBQ | `python run_experiment.py yahoo -mt mnar_pvae -i` 
+[Bayesian Partial VAE (B-PVAE)](models/bayesian_pvae.py)                   | PVAE with a Bayesian treatment. | MVP, NBQ | `python run_experiment.py boston -mt bayesian_pvae -a eddi rand`
+[Transformer PVAE](models/transformer_pvae.py)                             | A PVAE in which the encoder <br />  and decoder contain transformers.  <br /> See [our paper](**TODO**)| MVP, NBQ | `python run_experiment.py boston -mt transformer_pvae -a eddi rand`
+[Transformer encoder PVAE](models/transformer_encoder_pvae.py)             | A PVAE in which the encoder <br /> contains a transformer.  <br /> See [our paper](**TODO**) | MVP, NBQ | `python run_experiment.py boston -mt transformer_encoder_pvae -a eddi rand`
+[Transformer imputer/Rupert](models/transformer_imputer.py)                | A simple transformer model. <br /> See [our paper](**TODO**) | MVP, NBQ | `python run_experiment.py boston -mt transformer_imputer -a variance rand`
+[VICause](models/vicause.py)                                               | Causal discovery from data with <br />  missing features <br />  and imputation. [link to paper](https://www.microsoft.com/en-us/research/publication/vicause-simultaneous-missing-value-imputation-and-causal-discovery/). | MVP, CD | `python run_experiment.py eedi_task_3_4_topics -mt vicause`
+[CoRGi](models/corgi.py)                                                   |  GNN-based imputation with <br /> emphasis on item-related data  <br /> based on [Kim et al.](https://toappear) | MVP | See 5.7.1-5.7.4 for details. 
+[Graph Convolutional Network (GCN)](models/graph_convolutional_network.py) |  GNN-based imputation based <br /> on [Kipf et al.](https://arxiv.org/abs/1609.02907) | MVP | See *5.7.2-5.7.4* for details. 
+[GRAPE](models/grape.py)                                                   |  GNN-based imputation based <br /> on [You et al.](https://snap.stanford.edu/grape/) | MVP | See *5.7.2-5.7.4* for details. 
+[Graph Convolutional Matrix Completion (GC-MC)](models/gcmc.py)            |   GNN-based imputation based <br /> on [van den Berg et al.](https://arxiv.org/abs/1706.02263) | MVP | See *5.7.2-5.7.4* for details. 
+[GraphSAGE](models/graphsage.py)                                           |  GNN-based imputation based  <br /> on [Hamilton et al.](https://proceedings.neurips.cc/paper/2017/hash/5dd9db5e033da9c6fb5ba83c7a7ebea9-Abstract.html) | MVP | See [5.7.2-5.7.4](####5.7.2 Different node initializations) for details. 
+[Graph Attention Network (GAT)](models/graph_attention_network.py)         | Attention-based GNN imputation  <br /> based on [Veličković et al.](https://arxiv.org/abs/1710.10903) | MVP | See [5.7.2-5.7.4](####5.7.2 Different node initializations) for details. 
+[Deep Matrix Factorization (DMF)](models/deep_matrix_factorization.py)     | Matrix factorization with NN architecture. See [deep matrix factorization](https://www.ijcai.org/Proceedings/2017/0447.pdf.) | MVP | `python run_experiment.py eedi_task_3_4_binary -mt deep_matrix_factorization`
+[Mean imputing](baselines/mean_imputing.py)                                | Replace missing value with  <br /> mean. | MVP | `python run_experiment.py boston -mt mean_imputing`
+[Zero imputing](baselines/zero_imputing.py)                                | Replace missing value with  <br /> zeros. | MVP | `python run_experiment.py boston -mt zero_imputing`
+[Min imputing](baselines/min_imputing.py)                                  | Replace missing value with  <br /> min value. | MVP | `python run_experiment.py boston -mt min_imputing`
+[Majority vote](baselines/majority_vote.py)                                | Replace missing value with  <br /> majority vote. | MVP | `python run_experiment.py boston -mt majority_vote`
+[MICE](baselines/mice.py)                                                  | Multiple Imputation by  <br /> Chained Equations,  <br /> see [this paper](https://onlinelibrary.wiley.com/doi/full/10.1002/sim.4067) | MVP | `python run_experiment.py boston -mt mice`
+[MissForest](baselines/missforest.py)                                      | An iterative imputation method  <br /> (missForest) based on random forests.  <br /> See [this paper](https://academic.oup.com/bioinformatics/article/28/1/112/219101) | MVP | `python run_experiment.py boston -mt missforest` 
 
 ## Objectives
 
-Objective | Description
+Next Best Question Objectives | Description
 --- | ---
 [EDDI](objectives/eddi.py) | It uses information gain given observed values to predict the next best feature to query.
 [SING](objectives/sing.py) | It uses a fixed information gain ordering based on no questions being asked.
 [Random](objectives/rand.py) | It randomly selects the next best feature to query.
 [Variance](objectives/variance.py) | It queries the feature that is expected to reduce predictive variance in the target variable the most.
-**TODO**: Add other objectives
 
 ## 4. Reference results
 
-### Missing data imputation: Test Data Normaliized RMSE
+### Supported datasets
 
-Dataset | Partial VAE | **TODO**
---- | --- | ---
-Bank | 0.51 | **TODO**
-**TODO** | **TODO** | **TODO**
+We provide `variables.json` files and model configurations for the following datasets:
 
-**TODO**: Add more models/Datasets
+* UCI datasets: [webpage](https://archive.ics.uci.edu/ml/datasets.php)
+  * Bank: [webpage](https://archive.ics.uci.edu/ml/datasets/Bank+Marketing)
+  * Boston Housing: [webpage](http://www.cs.toronto.edu/~delve/data/boston/bostonDetail.html)
+  * Concrete: [webpage](https://archive.ics.uci.edu/ml/datasets/Concrete+Compressive+Strength)
+  * Energy: [webpage](https://archive.ics.uci.edu/ml/datasets/Energy+efficiency)
+  * Iris: [webpage](https://archive.ics.uci.edu/ml/datasets/iris)
+  * Kin8nm: [webpage](https://www.openml.org/d/189)
+  * Wine: [webpage](https://archive.ics.uci.edu/ml/datasets/Wine+Quality)
+  * Yacht: [webpage](https://archive.ics.uci.edu/ml/datasets/Yacht+Hydrodynamics)
+* MNIST: [webpage](http://yann.lecun.com/exdb/mnist/)
+* CIFAR-10: [webpage](https://www.cs.toronto.edu/~kriz/cifar.html)
+* NeurIPS 2020 Education Challenge datasets: [webpage](https://eedi.com/projects/neurips-education-challenge)
+  * eedi_task_1_2_binary: The data for the first two tasks. It uses only correct (1) or wrong (0) answers.
+  * eedi_task_1_2_categorical: The data for the first two tasks. It uses A, B, C, D answers.
+  * eedi_task_3_4_binary: The data for the last two tasks. It uses only correct(1) or wrong (0) answers.
+  * eedi_task_3_4_categorical: The data for the last two tasks. It uses A, B, C, D answers.
+  * eedi_task_3_4_topics: The data for the last two tasks. To produce the experimental results in VICause, binary answers are used. It has additional topic metadata.
+* Neuropathic Pain Diagnosis Simulator Dataset: [webpage](https://github.com/TURuibo/Neuropathic-Pain-Diagnosis-Simulator)
+  * denoted as "Neuropathic_pain" below. You need to use the simulator to generate the data.
+* Synthetic relationships: synthetic data generated by sampling the underlying true causal structure, and then, generating the data points from it.
+* Yahoo [webpage](https://consent.yahoo.com/v2/collectConsent?sessionId=3_cc-session_f8d7b45f-c09b-473f-99c6-d27adf00f176)
+* Goodreads [webpage](https://github.com/bahramJannesar/GoodreadsBookDataset): Refer to section 5.7.3 for more details.
 
-### Next best question: area under information curve (AUIC)
+### Missing Value Prediction (MVP)
 
-**TODO**: More explanation what AUIC is
+#### Test Data Normaliized RMSE
 
-Dataset | Partial VAE | **TODO**
---- | --- | ---
-Bank | 6.6 | **TODO**
-**TODO** | **TODO** | **TODO**
+For evalaution, we apply row-wise splitting, and we use 30% holdout data to test.
 
-**TODO**: Add more models/Datasets
+Dataset | Partial <br /> VAE | VAEM | Predictive <br /> VAEM | MNAR <br /> Partial <br /> VAE | B-PVAE | Mean <br /> imputing | Zero <br /> imputing | Min <br /> imputing | Majority <br /> vote | MICE | MissForest
+--- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---
+Bank | 0.51 |  0.66 | 0.56 | --| --| -- | -- | -- | 0.51 | -- | --
+Boston | 0.17 | 0.18 | -- | -- | 0.18| 0.23 | -- | -- | 0.37 | -- | 0.15
+Conrete | 0.18 | 0.19 | -- | -- | --| 0.22 | -- | -- | 0.27 | -- | 0.13
+Energy | 0.22 | 0.32 | -- | -- | 0.25| 0.35 | -- | -- | 0.48 | -- | 0.24
+Iris | 0.59 | -- | -- | -- | --| -- | -- | -- | -- | -- | --
+Kin8nm | 0.27 | -- | -- | -- | --| -- | -- | -- | -- | -- | --
+Wine | 0.17 | 0.17 | -- | -- | --| 0.24 | -- | -- | 0.31 | -- | 0.17 
+Yacht | 0.24 | 0.23 | -- | -- | --| 0.3 | -- | -- | 0.3 | -- | 0.16
+Yahoo | 0.36 | -- | -- | 0.3 | --| -- | -- | -- | -- | -- | --
+
+#### Accuracy
+
+Please note that for binary data (e.g. eedi_task_3_4_binary), we report accuracy to compare with the literature.
+
+Dataset | Partial <br /> VAE | VICause | CORGI | GRAPE | GCMC| Graph <br /> Convolutional <br /> Network | Graph <br /> Attention <br /> Network | GRAPHSAVE
+--- | --- | --- | --- | --- | --- | --- | --- | ---
+eedi_task_3_4_binary | 0.72 | -- | 0.71 | 0.71 | 0.69 | 0.71 | 0.6 | 0.69
+eedi_task_3_4_categorical | 0.57 | -- | -- | -- | -- | -- | -- | --
+eedi_task_3_4_topics | 0.71 | 0.69 | -- | -- | -- | -- | -- | --
+Neuropathic_pain | 0.94 | 0.95 | -- | -- | -- | -- | -- | --
+
+### Next Best Question (NBQ): area under information curve (AUIC)
+
+To evaluate the performance of different models for NBQ task, we compare the area under information curve (AUIC). See 
+[our paper](https://papers.nips.cc/paper/2020/hash/8171ac2c5544a5cb54ac0f38bf477af4-Abstract.html) for details. AUIC 
+is calculated as follows: at each step of the NBQ, each model will propose to collect one variable, and make new predictions 
+ for the target variable. We can then calculate the predictive error (e.g., rmse) of the target variable at each step. 
+ This creates the information curve as the NBQ task progresses. Therefore, the area under the information
+curve (AUIC) can then be used to compare the performance across models and strategies. Smaller AUIC value indicates 
+better performance. 
+
+Dataset | Partial <br /> VAE | VAEM | Predictive <br /> VAEM | MNAR <br /> Partial <br /> VAE | B-PVAE
+--- | --- | --- | --- | --- | ---
+Bank | 6.6 |  6.49 | 5.91 | --| --
+Boston | 2.03 | 2.0 | -- | -- | 1.96
+Conrete | 1.48 | 1.47 | -- | -- | --
+Energy | 1.18 | 1.3 | -- | -- | 1.44
+Iris | 2.8 | -- | -- | -- | --
+Kin8nm | 1.28 | -- | -- | -- | --
+Wine | 2.14 | 2.45 | -- | -- | --
+Yacht | 0.94 | 0.9 | -- | -- | --
+
+### Causal discovery (CD)
+
+We procide F1 score for adjacency and orientation to measure the causal discovery results. Please refer to VICause paper for details.
+
+<table>
+    <thead>
+        <tr>
+            <th>Dataset</th>
+            <th colspan=2>VICause</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td></td>
+            <td>Adjacency.F1</td>
+            <td>Orientation.F1</td>
+        </tr>
+        <tr>
+            <td>Neuropathic_pain</td>
+            <td>0.28</td>
+            <td>0.26</td>
+        </tr>
+        <tr>
+            <td>Synthetic_relationships</td>
+            <td>0.82</td>
+            <td>0.47</td>
+        </tr>
+    </tbody>
+</table>
 
 ## 5. Model details
 
@@ -197,7 +269,7 @@ Bank | 6.6 | **TODO**
 Partial VAE (PVAE) is an unsupervised deep generative model, that is specifically designed to handle missing data. We mainly
 use this model to learn the underlying structure (latent representation) of the partially observed data, and perform missing data
 imputation. Just like any vanilla VAEs, PVAE is comprised of an encoder and a decoder. The PVAE encoder is parameterized 
-by the so-called set-encoder (point-net, see [our paper](https://arxiv.org/abs/1809.11142) for details), which is able 
+by the so-called set-encoder (point-net, see [our paper](http://proceedings.mlr.press/v97/ma19c.html) for details), which is able 
 to extract the latent representation from partially observed data. Then, the PVAE decoder can take as input the extracted 
 latent representation, and generate values for both missing entries (imputation), and observed entries (reconstruction).  
 
@@ -207,15 +279,15 @@ One of the major differences between PVAE and VAE is, the PVAE encoder can handl
 PVAE encoder is parameterized by the so-called set-encoder, which will process partially observed data in three steps: 
 1, feature embedding; 2, permutation-invariant aggregation; and 3, encoding into statistics of latent representation. 
 These are implemented in [`feature_embedder.py`](models/feature_embedder.py), ['point_net.py'](models/point_net.py), and 
-[`encoder.py`](models/encoder.py), respectively. see [our paper, Section 3.2](https://arxiv.org/abs/1809.11142) for technical details. 
+[`encoder.py`](models/encoder.py), respectively. see [our paper, Section 3.2](http://proceedings.mlr.press/v97/ma19c.html) for technical details. 
 
 
 **Model configs**
 
-* `"embedding_dim"`: dimensionality of embedding for each input to PVAE encoder. 
-    See [our paper](https://arxiv.org/abs/1809.11142) for details.
-* `"set_embedding_dim"`: dimensionality of output set embedding in PVAE encoder.
-    See [our paper](https://arxiv.org/abs/1809.11142) for details.
+* `"embedding_dim"`: dimensionality of embedding (referred to as **e** in the paper) for each input to PVAE encoder. 
+    See [our paper](http://proceedings.mlr.press/v97/ma19c.html) for details.
+* `"set_embedding_dim"`: dimensionality of output set embedding (referred to as **h** in the paper) in PVAE encoder.
+    See [our paper](http://proceedings.mlr.press/v97/ma19c.html) for details.
 * `"set_embedding_multiply_weights"`: Whether or not to take the product of x with embedding weights when feeding through. 
 Default: `true`.
 * `"latent_dim"`: dimensionality of the PVAE latent representation
@@ -339,17 +411,140 @@ Most of the model configs are the same as PVAE, except the following:
     data). `"degenerate_prior"` will determine how we handle such degenerate case. Currently, we only support `"mask"` 
     method, which will use the missingness mask themselves as auxiliary variables. 
 
+### 5.5 Bayesian partial VAE (B-PVAE)
+
+Standard training of PVAE produces the point estimates for the neural network parameters in the decoder. This approach 
+does not quantify the epistemic uncertainty of our model. B-PVAE is a variant of PVAE, that applies a fully Bayesian 
+treatment to the weights. The model setting is the same as in [BELGAM,](https://proceedings.neurips.cc/paper/2019/file/c055dcc749c2632fd4dd806301f05ba6-Paper.pdf) 
+whereas the approximate inference is done using the [inducing weights approach](https://arxiv.org/abs/2105.14594). 
+
+**Implementation**
+
+Implementation-wise, B-PVAE is based on Bayesianize, a lightweight Bayesian neural network (BNN) wrapper in pytorch, 
+which allows easy conversion of neural networks in existing scripts to its Bayesian version with minimal changes. For 
+more details, please see our [github repo](https://github.com/microsoft/bayesianize).
+
+### 5.6 VICause 
+
+Missing values constitute an important challenge in real-world machine learning for both prediction and causal discovery tasks. However, only few methods in causal discovery can handle missing data in an efficient way, while existing imputation methods are agnostic to causality. In this work we propose VICAUSE, a novel approach to simultaneously tackle missing value imputation and causal discovery efficiently with deep learning. Particularly, we propose a generative model with a structured latent space and a graph neural network-based architecture, scaling to large number of variables. Moreover, our method can discover relationship between groups of variables which is useful in many real-world applications. VICAUSE shows improved performance compared to popular and recent approaches in both missing value imputation and causal discovery.
+
+For more information, please refer to the [paper] (https://www.microsoft.com/en-us/research/publication/vicause-simultaneous-missing-value-imputation-and-causal-discovery/).
+
+### 5.7 CoRGi, Graph Convolutional Network (GCN), GRAPE, Graph Convolutional Matrix Completion (GC-MC), and GraphSAGE
+
+#### 5.7.1 CoRGi and baselines
+
+**[CoRGi](models/corgi.py)** 
+
+CoRGi is a GNN model that considers the rich data within nodes in the context of their neighbors. 
+This is achieved by endowing CORGI’s message passing with a personalized attention
+mechanism over the content of each node. This way, CORGI assigns user-item-specific 
+attention scores with respect to the words that appear in items. More detailed information can be found in our paper:
+
+CORGI: Content-Rich Graph Neural Networks with Attention. J. Kim, A. Lamb, S. Woodhead, S. Peyton Jones, C. Zhang, 
+M. Allamanis. RecSys: Workshop on Graph Neural Networks for Recommendation and Search, 2021, 2021
+
+**[Graph Convolutional Network (GCN)](models/graph_convolutional_network.py)**
+
+
+Azua provides a re-implementation of GCN. As a default, "average" is used for the aggregation function 
+and nodes are randomly initialized. 
+We adopt dropout with probability 0.5 for node embedding updates
+as well as for the prediction MLPs.
+
+**[GRAPE](models/grape.py)**
+
+GRAPE is a GNN model that employs edge embeddings (please refer to [this paper](https://arxiv.org/abs/2010.16418) for details).
+Also, it adopts edge dropouts that are applied throughout all message-passing layers.
+Compared to the GRAPE proposed in the oroginal paper, because of the memory issue, 
+we do not initialize nodes with one-hot vectors nor constants (ones). 
+
+**[Graph Convolutional Matrix Completion (GC-MC)](models/gcmc.py)**
+
+Compared to GCN, this model has a single message-passing layer. 
+Also, For classification, each label is endowed with a separate message passing channel.
+Here, we do not implement the weight sharing. For more details, please refer to [this paper](https://arxiv.org/abs/1706.02263). 
+
+**[GraphSAGE](models/graphsage.py)**
+
+GraphSAGE extends GCN by allowing the model to be trained on the part of the graph, 
+making the model to be used in inductive settings. For more details, please refer to [this paper](https://arxiv.org/abs/1706.02216)
+
+**[Graph Attention Network (GAT)](models/graph_attention_network.py)**
+
+During message aggregation, GAT uses the attention mechanism to allow the target nodes to
+distinguish the weights of multiple messages from the source nodes for aggregation. For more details, please refer to 
+[this paper](https://arxiv.org/abs/1710.10903). 
+
+#### 5.7.2 Different node initializations
+
+All GNN models allow different kinds of node initializations.
+This can be done by modifying the model config file.
+For example, to run CoRGi with SBERT initialization, change `"node_init": "random"`
+to `"node_init": "sbert_init"` in `configs/defaults/model_config_corgi.json`.
+
+The list of node initializations allowed inclue: 
+
+`"random", "grape", "text_init" (TF-IDF),"sbert_init", "neural_bow_init", "bert_cls_init", "bert_average_init"`
+
+For example, the test performance of `GCN Init: NeuralBOW` in Table 2 of the paper on Eedi dataset can be acquired by running:
+
+`python run_experiment.py eedi graph_convolutional_network -dc configs/defaults/model_config_graph_convolutional_network.json`
+
+with `"node_init": "neural_bow_init"` in te corresponding model config file.
+
+#### 5.7.3 Datasets
+
+CoRGi operate on content-augmented graph data.
+
+**Goodreads**
+
+Download the data from this [link](https://github.com/bahramJannesar/GoodreadsBookDataset) under `data` directory with name `goodreads`.
+
+The Goodreads dataset from the Goodreads website contains users and books. The content of each book-node is its natural language description. The dataset includes a 1 to 5 integer ratings between some books and users.
+
+The pre-processing of this data can found at
+
+```
+research_experiments/GNN/create_goodreads_dataset.py
+```
+
+**Eedi**
+
+Download the data from this [link](https://competitions.codalab.org/competitions/25449) under `data` directory with name `eedi`.
+
+This dataset is from the Diagnostic Questions - NeurIPS 2020 Education Challenge. It contains anonymized student and question identities with the student responses to some questions. The content of each question-node is the text of the question. Edge labels are binary: one and zero for correct and incorrect answers.
+
+The pre-processing codes for the datasets to be used for CoRGi can be found at:
+
+```
+research_experiments/eedi/
+```
+
+#### 5.7.3 Running Corgi
+
+To run the CoRGi code with Eedi dataset, first locate the preprocessed data at
+
+```
+data/eedi/
+```
+
+Then, run the following code:
+
+```
+python run_experiment.py eedi -mt corgi
+```
+
+This can be done with different datasets and different GNN models. The train and validation performances can be tracked 
+using tensorboard which is logged under the `runs` directory. Also, the trained model is saved with `.pt` extension.
+
+
 
 ## 6. Other engineering details
 
-**TODO**: Rethink whether we need that section, especially whether we should move supported datasets somewhere
-
 ### Reproducibility
 
-**TODO**: Update by bringing up pytorch limitations + link to the source
-Running the various Azua scripts give different results on different machines. There has been
-some investigation into this, and the team believes this to be due to floating point instability.
-Because of this, results should be compared with others from the same machine only.
+As the project uses PyTorch, we can't guarantee completely reproducible results across different platforms and devices. However, for the specific platform/device, the results should be completed reproducible i.e. running an experiment twice should give the exact same results. More about limitation on reproducibility in PyTorch can be found [here](https://pytorch.org/docs/stable/notes/randomness.html).
 
 ### Add your own dataset
 
@@ -378,23 +573,9 @@ For each field not specified, it will attempt to be inferred. *Note*: all featur
 thus not active learning targets, unless explicitly specified otherwise. Lower and upper values will be inferred from
 the training data, and the type will be inferred based on whether the variable takes exclusively integer values.
 
-### Supported datasets
+### Split type for the dataset
 
-Preprocessed datasets and `variables.json` files are available to download from the Azua datasets blob storage
-container. Currently supported datasets include:
-
-* UCI datasets: [webpage](https://archive.ics.uci.edu/ml/datasets.php)
-  * Bank: [webpage](https://archive.ics.uci.edu/ml/datasets/Bank+Marketing)
-  * Boston Housing: [webpage](http://www.cs.toronto.edu/~delve/data/boston/bostonDetail.html)
-  * Energy: [webpage](https://archive.ics.uci.edu/ml/datasets/Energy+efficiency)
-  * Wine: [webpage](https://archive.ics.uci.edu/ml/datasets/Wine+Quality)
-  * Concrete: [webpage](https://archive.ics.uci.edu/ml/datasets/Concrete+Compressive+Strength)
-  * kin8nm: [webpage](https://www.openml.org/d/189)
-  * yacht: [webpage](https://archive.ics.uci.edu/ml/datasets/Yacht+Hydrodynamics)
-* MNIST: [webpage](http://yann.lecun.com/exdb/mnist/)
-* CIFAR-10: [webpage](https://www.cs.toronto.edu/~kriz/cifar.html)
-
-**TODO**: Update the list above
+The source data can be split into train/validation/test datasets either based on rows or elements. The former is split by rows of the matrix, whereas the latter is split by individual elements of the matrix, so that different elements of a row can appear in different data splits (i.e. train or validation or test).
 
 ## Contributing
 

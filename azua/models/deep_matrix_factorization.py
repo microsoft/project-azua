@@ -141,7 +141,7 @@ class DeepMatrixFactorization(TorchModel):
             save_json(train_results, train_results_save_path)
 
         # Reload best saved model into this class.
-        self = self.load(self.model_id, self.save_dir, self._device, self.variables)  # type: ignore
+        self = self.load(self.model_id, self.save_dir, self._device)  # type: ignore
 
     @inject
     def _train(
