@@ -120,36 +120,36 @@ to run the model (which will also reproduce one experiment from the paper).
 
 Model | Description | Functionalities | Example usage 
 --- | --- | --- | --- 
-[Partial VAE (PVAE)](models/partial_vae.py)                                | An extension of VAEs for <br /> partially observed data.  <br /> See [our paper](http://proceedings.mlr.press/v97/ma19c.html). |  MVP, NBQ | `python run_experiment.py boston -mt pvae -a eddi rand`
-[VAE Mixed (VAEM)](models/vae_mixed.py)                                    | An extension of PVAE for <br /> heterogeneous mixed type data.  <br /> See [our paper](https://papers.nips.cc/paper/2020/hash/8171ac2c5544a5cb54ac0f38bf477af4-Abstract.html). | MVP, NBQ | `python run_experiment.py bank -mt vaem_predictive -a sing` 
-[MNAR Partial VAE (MNAR-PVAE)](models/mnar_pvae.py)                        | An extension of VAE that <br /> handles missing-not-at-random  <br /> (MNAR) data.  <br /> More details in the future. | MVP, NBQ | `python run_experiment.py yahoo -mt mnar_pvae -i` 
-[Bayesian Partial VAE (B-PVAE)](models/bayesian_pvae.py)                   | PVAE with a Bayesian treatment. | MVP, NBQ | `python run_experiment.py boston -mt bayesian_pvae -a eddi rand`
-[Transformer PVAE](models/transformer_pvae.py)                             | A PVAE in which the encoder <br />  and decoder contain transformers.  <br /> See [our paper](**TODO**)| MVP, NBQ | `python run_experiment.py boston -mt transformer_pvae -a eddi rand`
-[Transformer encoder PVAE](models/transformer_encoder_pvae.py)             | A PVAE in which the encoder <br /> contains a transformer.  <br /> See [our paper](**TODO**) | MVP, NBQ | `python run_experiment.py boston -mt transformer_encoder_pvae -a eddi rand`
-[Transformer imputer/Rupert](models/transformer_imputer.py)                | A simple transformer model. <br /> See [our paper](**TODO**) | MVP, NBQ | `python run_experiment.py boston -mt transformer_imputer -a variance rand`
-[VICause](models/vicause.py)                                               | Causal discovery from data with <br />  missing features <br />  and imputation. [link to paper](https://www.microsoft.com/en-us/research/publication/vicause-simultaneous-missing-value-imputation-and-causal-discovery/). | MVP, CD | `python run_experiment.py eedi_task_3_4_topics -mt vicause`
-[CoRGi](models/corgi.py)                                                   |  GNN-based imputation with <br /> emphasis on item-related data  <br /> based on [Kim et al.](https://toappear) | MVP | See 5.7.1-5.7.4 for details. 
+[Partial VAE (PVAE)](azua/models/partial_vae.py)                                | An extension of VAEs for <br /> partially observed data.  <br /> See [our paper](http://proceedings.mlr.press/v97/ma19c.html). |  MVP, NBQ | `python run_experiment.py boston -mt pvae -a eddi rand`
+[VAE Mixed (VAEM)](azua/models/vae_mixed.py)                                    | An extension of PVAE for <br /> heterogeneous mixed type data.  <br /> See [our paper](https://papers.nips.cc/paper/2020/hash/8171ac2c5544a5cb54ac0f38bf477af4-Abstract.html). | MVP, NBQ | `python run_experiment.py bank -mt vaem_predictive -a sing` 
+[MNAR Partial VAE (MNAR-PVAE)](azua/models/mnar_pvae.py)                        | An extension of VAE that <br /> handles missing-not-at-random  <br /> (MNAR) data.  <br /> More details in the future. | MVP, NBQ | `python run_experiment.py yahoo -mt mnar_pvae -i` 
+[Bayesian Partial VAE (B-PVAE)](azua/models/bayesian_pvae.py)                   | PVAE with a Bayesian treatment. | MVP, NBQ | `python run_experiment.py boston -mt bayesian_pvae -a eddi rand`
+[Transformer PVAE](azua/models/transformer_pvae.py)                             | A PVAE in which the encoder <br />  and decoder contain transformers.  <br /> See [our paper](**TODO**)| MVP, NBQ | `python run_experiment.py boston -mt transformer_pvae -a eddi rand`
+[Transformer encoder PVAE](azua/models/transformer_encoder_pvae.py)             | A PVAE in which the encoder <br /> contains a transformer.  <br /> See [our paper](**TODO**) | MVP, NBQ | `python run_experiment.py boston -mt transformer_encoder_pvae -a eddi rand`
+[Transformer imputer/Rupert](azua/models/transformer_imputer.py)                | A simple transformer model. <br /> See [our paper](**TODO**) | MVP, NBQ | `python run_experiment.py boston -mt transformer_imputer -a variance rand`
+[VICause](azua/models/vicause.py)                                               | Causal discovery from data with <br />  missing features <br />  and imputation. [link to paper](https://www.microsoft.com/en-us/research/publication/vicause-simultaneous-missing-value-imputation-and-causal-discovery/). | MVP, CD | `python run_experiment.py eedi_task_3_4_topics -mt vicause`
+[CoRGi](azua/models/corgi.py)                                                   |  GNN-based imputation with <br /> emphasis on item-related data  <br /> based on [Kim et al.](https://toappear) | MVP | See 5.7.1-5.7.4 for details. 
 [Graph Convolutional Network (GCN)](models/graph_convolutional_network.py) |  GNN-based imputation based <br /> on [Kipf et al.](https://arxiv.org/abs/1609.02907) | MVP | See *5.7.2-5.7.4* for details. 
-[GRAPE](models/grape.py)                                                   |  GNN-based imputation based <br /> on [You et al.](https://snap.stanford.edu/grape/) | MVP | See *5.7.2-5.7.4* for details. 
+[GRAPE](azua/models/grape.py)                                                   |  GNN-based imputation based <br /> on [You et al.](https://snap.stanford.edu/grape/) | MVP | See *5.7.2-5.7.4* for details. 
 [Graph Convolutional Matrix Completion (GC-MC)](models/gcmc.py)            |   GNN-based imputation based <br /> on [van den Berg et al.](https://arxiv.org/abs/1706.02263) | MVP | See *5.7.2-5.7.4* for details. 
-[GraphSAGE](models/graphsage.py)                                           |  GNN-based imputation based  <br /> on [Hamilton et al.](https://proceedings.neurips.cc/paper/2017/hash/5dd9db5e033da9c6fb5ba83c7a7ebea9-Abstract.html) | MVP | See [5.7.2-5.7.4](####5.7.2 Different node initializations) for details. 
-[Graph Attention Network (GAT)](models/graph_attention_network.py)         | Attention-based GNN imputation  <br /> based on [Veličković et al.](https://arxiv.org/abs/1710.10903) | MVP | See [5.7.2-5.7.4](####5.7.2 Different node initializations) for details. 
-[Deep Matrix Factorization (DMF)](models/deep_matrix_factorization.py)     | Matrix factorization with NN architecture. See [deep matrix factorization](https://www.ijcai.org/Proceedings/2017/0447.pdf.) | MVP | `python run_experiment.py eedi_task_3_4_binary -mt deep_matrix_factorization`
-[Mean imputing](baselines/mean_imputing.py)                                | Replace missing value with  <br /> mean. | MVP | `python run_experiment.py boston -mt mean_imputing`
-[Zero imputing](baselines/zero_imputing.py)                                | Replace missing value with  <br /> zeros. | MVP | `python run_experiment.py boston -mt zero_imputing`
-[Min imputing](baselines/min_imputing.py)                                  | Replace missing value with  <br /> min value. | MVP | `python run_experiment.py boston -mt min_imputing`
-[Majority vote](baselines/majority_vote.py)                                | Replace missing value with  <br /> majority vote. | MVP | `python run_experiment.py boston -mt majority_vote`
-[MICE](baselines/mice.py)                                                  | Multiple Imputation by  <br /> Chained Equations,  <br /> see [this paper](https://onlinelibrary.wiley.com/doi/full/10.1002/sim.4067) | MVP | `python run_experiment.py boston -mt mice`
-[MissForest](baselines/missforest.py)                                      | An iterative imputation method  <br /> (missForest) based on random forests.  <br /> See [this paper](https://academic.oup.com/bioinformatics/article/28/1/112/219101) | MVP | `python run_experiment.py boston -mt missforest` 
+[GraphSAGE](azua/models/graphsage.py)                                           |  GNN-based imputation based  <br /> on [Hamilton et al.](https://proceedings.neurips.cc/paper/2017/hash/5dd9db5e033da9c6fb5ba83c7a7ebea9-Abstract.html) | MVP | See [5.7.2-5.7.4](####5.7.2 Different node initializations) for details. 
+[Graph Attention Network (GAT)](azua/models/graph_attention_network.py)         | Attention-based GNN imputation  <br /> based on [Veličković et al.](https://arxiv.org/abs/1710.10903) | MVP | See [5.7.2-5.7.4](####5.7.2 Different node initializations) for details. 
+[Deep Matrix Factorization (DMF)](azua/models/deep_matrix_factorization.py)     | Matrix factorization with NN architecture. See [deep matrix factorization](https://www.ijcai.org/Proceedings/2017/0447.pdf.) | MVP | `python run_experiment.py eedi_task_3_4_binary -mt deep_matrix_factorization`
+[Mean imputing](azua/baselines/mean_imputing.py)                                | Replace missing value with  <br /> mean. | MVP | `python run_experiment.py boston -mt mean_imputing`
+[Zero imputing](azua/baselines/zero_imputing.py)                                | Replace missing value with  <br /> zeros. | MVP | `python run_experiment.py boston -mt zero_imputing`
+[Min imputing](azua/baselines/min_imputing.py)                                  | Replace missing value with  <br /> min value. | MVP | `python run_experiment.py boston -mt min_imputing`
+[Majority vote](azua/baselines/majority_vote.py)                                | Replace missing value with  <br /> majority vote. | MVP | `python run_experiment.py boston -mt majority_vote`
+[MICE](azua/baselines/mice.py)                                                  | Multiple Imputation by  <br /> Chained Equations,  <br /> see [this paper](https://onlinelibrary.wiley.com/doi/full/10.1002/sim.4067) | MVP | `python run_experiment.py boston -mt mice`
+[MissForest](azua/baselines/missforest.py)                                      | An iterative imputation method  <br /> (missForest) based on random forests.  <br /> See [this paper](https://academic.oup.com/bioinformatics/article/28/1/112/219101) | MVP | `python run_experiment.py boston -mt missforest` 
 
 ## Objectives
 
 Next Best Question Objectives | Description
 --- | ---
-[EDDI](objectives/eddi.py) | It uses information gain given observed values to predict the next best feature to query.
-[SING](objectives/sing.py) | It uses a fixed information gain ordering based on no questions being asked.
-[Random](objectives/rand.py) | It randomly selects the next best feature to query.
-[Variance](objectives/variance.py) | It queries the feature that is expected to reduce predictive variance in the target variable the most.
+[EDDI](azua/objectives/eddi.py) | It uses information gain given observed values to predict the next best feature to query.
+[SING](azua/objectives/sing.py) | It uses a fixed information gain ordering based on no questions being asked.
+[Random](azua/objectives/rand.py) | It randomly selects the next best feature to query.
+[Variance](azua/objectives/variance.py) | It queries the feature that is expected to reduce predictive variance in the target variable the most.
 
 ## 4. Reference results
 
@@ -278,8 +278,8 @@ latent representation, and generate values for both missing entries (imputation)
 One of the major differences between PVAE and VAE is, the PVAE encoder can handle missing data in a principled way. The 
 PVAE encoder is parameterized by the so-called set-encoder, which will process partially observed data in three steps: 
 1, feature embedding; 2, permutation-invariant aggregation; and 3, encoding into statistics of latent representation. 
-These are implemented in [`feature_embedder.py`](models/feature_embedder.py), ['point_net.py'](models/point_net.py), and 
-[`encoder.py`](models/encoder.py), respectively. see [our paper, Section 3.2](http://proceedings.mlr.press/v97/ma19c.html) for technical details. 
+These are implemented in [`feature_embedder.py`](azua/models/feature_embedder.py), ['point_net.py'](azua/models/point_net.py), and 
+[`encoder.py`](azua/models/encoder.py), respectively. see [our paper, Section 3.2](http://proceedings.mlr.press/v97/ma19c.html) for technical details. 
 
 
 **Model configs**
@@ -329,12 +329,12 @@ trained in a two stage manner.
 
 * In the first stage, we model the marginal distributions of each single variable separately. 
 This is done by fitting  a different vanilla VAE independently to each data dimension. This is implemented in 
-[`marginal_vaes.py`](models/marginal_vaes.py). Those one-dimensional VAEs will capture the marginal properties of each 
+[`marginal_vaes.py`](azua/models/marginal_vaes.py). Those one-dimensional VAEs will capture the marginal properties of each 
 variable and provide a latent representation that is more homogeneous across dimensions. 
 
 * In the second stage, we capture  the dependencies among each variables. To this end, another Partial VAE, called the 
 dependency network, is build on top of the latent representations provided by the first-stage VAEs. This is implemented 
-in [`dependency_network_creator`](models/dependency_network_creator.py)
+in [`dependency_network_creator`](azua/models/dependency_network_creator.py)
 
 To summarize, we can think of the first stage of VAEM as a data pre-processing step, that transforms heterogeneous 
 mixed-type data into a homogeneous version of the data. Then, we can perform missing data imputation and personalized 
@@ -363,7 +363,7 @@ variables. We found that such approach will generally yield better predictive pe
 **The predictive model**
 
 The conditional distribution of the target, given the input variables (as well as the latent representation), is parameterized 
-by a feed-forward neural network. This is implemented in [`marginal_vaes_with_predictive_vae`](models/marginal_vaes_with_predictive_vae.py).
+by a feed-forward neural network. This is implemented in [`marginal_vaes_with_predictive_vae`](azua/models/marginal_vaes_with_predictive_vae.py).
 
 
 **Model configs**
@@ -382,7 +382,7 @@ samples. Azua provides a new deep generative model, called MNAR Partial VAE, tha
 **Mask net and identifiable PVAE**
 
 MNAR PVAE has two main components: a Mask net, and an identifiable PVAE. The mask net is a neural network (implemented 
-in [`mask_net`](models/mask_net.py) ), that models the conditional probability distribution of missing mask, given the 
+in [`mask_net`](azua/models/mask_net.py) ), that models the conditional probability distribution of missing mask, given the 
 data (and latent representations). This will help debiasing the MNAR mechanism.  The identifiable PVAE is a variant of 
 VAE, when combined with the mask net, will provide identifiability guarantees under certain assumptions. Unlike vanilla 
 PVAEs, identifiable PVAE uses a neural network, called the prior net, to define the prior distribution on latent space. 
@@ -434,7 +434,7 @@ For more information, please refer to the [paper] (https://www.microsoft.com/en-
 
 #### 5.7.1 CoRGi and baselines
 
-**[CoRGi](models/corgi.py)** 
+**[CoRGi](azua/models/corgi.py)** 
 
 CoRGi is a GNN model that considers the rich data within nodes in the context of their neighbors. 
 This is achieved by endowing CORGI’s message passing with a personalized attention
@@ -444,7 +444,7 @@ attention scores with respect to the words that appear in items. More detailed i
 CORGI: Content-Rich Graph Neural Networks with Attention. J. Kim, A. Lamb, S. Woodhead, S. Peyton Jones, C. Zhang, 
 M. Allamanis. RecSys: Workshop on Graph Neural Networks for Recommendation and Search, 2021, 2021
 
-**[Graph Convolutional Network (GCN)](models/graph_convolutional_network.py)**
+**[Graph Convolutional Network (GCN)](azua/models/graph_convolutional_network.py)**
 
 
 Azua provides a re-implementation of GCN. As a default, "average" is used for the aggregation function 
@@ -452,25 +452,25 @@ and nodes are randomly initialized.
 We adopt dropout with probability 0.5 for node embedding updates
 as well as for the prediction MLPs.
 
-**[GRAPE](models/grape.py)**
+**[GRAPE](azua/models/grape.py)**
 
 GRAPE is a GNN model that employs edge embeddings (please refer to [this paper](https://arxiv.org/abs/2010.16418) for details).
 Also, it adopts edge dropouts that are applied throughout all message-passing layers.
 Compared to the GRAPE proposed in the oroginal paper, because of the memory issue, 
 we do not initialize nodes with one-hot vectors nor constants (ones). 
 
-**[Graph Convolutional Matrix Completion (GC-MC)](models/gcmc.py)**
+**[Graph Convolutional Matrix Completion (GC-MC)](azua/models/gcmc.py)**
 
 Compared to GCN, this model has a single message-passing layer. 
 Also, For classification, each label is endowed with a separate message passing channel.
 Here, we do not implement the weight sharing. For more details, please refer to [this paper](https://arxiv.org/abs/1706.02263). 
 
-**[GraphSAGE](models/graphsage.py)**
+**[GraphSAGE](azua/models/graphsage.py)**
 
 GraphSAGE extends GCN by allowing the model to be trained on the part of the graph, 
 making the model to be used in inductive settings. For more details, please refer to [this paper](https://arxiv.org/abs/1706.02216)
 
-**[Graph Attention Network (GAT)](models/graph_attention_network.py)**
+**[Graph Attention Network (GAT)](azua/models/graph_attention_network.py)**
 
 During message aggregation, GAT uses the attention mechanism to allow the target nodes to
 distinguish the weights of multiple messages from the source nodes for aggregation. For more details, please refer to 
