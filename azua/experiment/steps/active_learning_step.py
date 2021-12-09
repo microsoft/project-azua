@@ -34,7 +34,7 @@ class ActiveLearningResults:
         all_info_gains: Dictionary of {active learning strategy: estimated information gain (np array)}.
             The shape of this array is strategy dependent.
             If no information gain for this method, this is None.
-            If info gain changes per step (e.g. EDDI), this is a list of length (step_count) of list of length
+            If info gain changes per step (e.g. EDDI, Cond_SING), this is a list of length (step_count) of list of length
                 (user_count) of dictionaries {variable_id: info_gain}
             If info gain is constant for all steps and users (e.g. SING) this is a list of length
                 (step_count) of dictionaries {variable_id: info_gain}

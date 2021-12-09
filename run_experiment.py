@@ -175,21 +175,34 @@ def get_parser() -> argparse.ArgumentParser:
             "eddi_mc",
             "eddi_rowwise",
             "rand",
+            "cond_sing",
             "sing",
             "variance",
             "all",
         ],
-        help="""Run active learning after train and test""",
+        help="""Run active learning after train and test.
+                                eddi = personalized information acquisition from EDDI paper
+                                eddi_mc = personalized information acquisition using Bayesian EDDI with stocastic weights
+                                eddi_rowwise = same as eddi but with row-wise parallelization for information gain computation
+                                rand = random strategy for information acquisition
+                                cond_sing = conditional single order strategy across the whole test dataset where the next best step condition on existing observation  
+                                sing = single order strategy determinated by first step information gain""",
     )
     parser.add_argument(
         "--users_to_plot", "-up", default=[0], nargs="+", help="Indices of users to plot info gain bar charts for."
     )
     # Whether or not to evaluate causal discovery (only vicause at the moment)
     parser.add_argument(
-        "--eval_causal_discovery",
+        "--causal_discovery",
         "-c",
         action="store_true",
         help="Whether to evaluate causal discovery against a ground truth during evaluation.",
+    )
+    parser.add_argument(
+        "--treatment_effects",
+        "-te",
+        action="store_true",
+        help="Whether to evaluate treatment effects against a ground truth.",
     )
     # Other options for saving output.
 
@@ -211,6 +224,23 @@ def get_parser() -> argparse.ArgumentParser:
         default="configs",
         help="Directory containing configs. Defaults to ./configs",
     )
+    # Control the logger level
+    parser.add_argument(
+        "--logger_level",
+        "-ll",
+        type=str.upper,
+        default="INFO",
+        choices=["CRITICAL", "ERROR", "INFO", "DEBUG", "WARNING"],
+        help="Control the logger level. Default: %(default)s .",
+    )
+    # Control whether evaluating the log-likelihood for Causal models
+    parser.add_argument(
+        "--eval_likelihood",
+        "-el",
+        action="store_false",
+        help="Disable the likelihood computation for causal models during treatment effect estimation.",
+    )
+
     return parser
 
 
@@ -278,7 +308,8 @@ def run_experiment(
     active_learning=None,
     max_steps=np.inf,
     max_al_rows=np.inf,
-    eval_causal_discovery=False,
+    causal_discovery=False,
+    treatment_effects=False,
     output_dir="runs",
     device="cpu",
     name=None,
@@ -288,6 +319,8 @@ def run_experiment(
     random_seed: Optional[int] = None,
     default_configs_dir: Optional[str] = "configs",
     azua_context: AzuaContext = Provide[AzuaContext],
+    logger_level="INFO",
+    eval_likelihood: bool = True,
 ):
     # Load configs
     model_config, train_hypers, dataset_config, impute_config, objective_config = get_configs(
@@ -303,7 +336,7 @@ def run_experiment(
         model_config["random_seed"] = random_seed
     # Change active learning method if imputation_method is not none and all methods are run
     if active_learning is not None and objective_config["imputation_method"] is not None:
-        if active_learning == ["eddi", "rand", "sing"]:
+        if active_learning == ["eddi", "rand", "cond_sing", "sing"]:
             active_learning = ["rand_im", "ei", "k_ei", "b_ei", "bin", "gls"]
 
     # Create directories, record arguments and configs
@@ -324,7 +357,8 @@ def run_experiment(
         "objective_config_path": objective_config_path,
         "run_inference": run_inference,
         "active_learning": active_learning,
-        "eval_causal_discovery": eval_causal_discovery,
+        "causal_discovery": causal_discovery,
+        "treatment_effects": treatment_effects,
         "device": device,
         "run_train": model_id is None,
         "model_config": model_config,
@@ -356,7 +390,8 @@ def run_experiment(
             active_learning=active_learning,
             max_steps=max_steps,
             max_al_rows=max_al_rows,
-            eval_causal_discovery=eval_causal_discovery,
+            causal_discovery=causal_discovery,
+            treatment_effects=treatment_effects,
             device=device,
             quiet=quiet,
             active_learning_users_to_plot=active_learning_users_to_plot,
@@ -371,6 +406,8 @@ def run_experiment(
             experiment_name=experiment_name,
             model_seed=model_seed,
             aml_tags=aml_tags,
+            logger_level=logger_level,
+            eval_likelihood=eval_likelihood,
         )
         if pipeline_creation_mode:
             step_ouput = pipeline.add_step(
@@ -429,7 +466,8 @@ def run_experiment_on_parsed_args(args: argparse.Namespace):
         active_learning=args.active_learning,
         max_steps=args.max_steps,
         max_al_rows=args.max_al_rows,
-        eval_causal_discovery=args.eval_causal_discovery,
+        causal_discovery=args.causal_discovery,
+        treatment_effects=args.treatment_effects,
         output_dir=args.output_dir,
         device=args.device,
         name=args.name,
@@ -438,6 +476,8 @@ def run_experiment_on_parsed_args(args: argparse.Namespace):
         tiny=args.tiny,
         random_seed=args.random_seed,
         default_configs_dir=args.default_configs_dir,
+        logger_level=args.logger_level,
+        eval_likelihood=args.eval_likelihood,
     )
 
 

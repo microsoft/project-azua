@@ -4,6 +4,7 @@
        "num_inducing_points": 32
     },
     "training_hyperparams": {
-       "batch_size": 200
+       "batch_size": 200,
+       "learning_rate": 5e-2
     }
  }

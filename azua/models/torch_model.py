@@ -202,7 +202,7 @@ class TorchModel(Model, torch.nn.Module):
         torch_device = get_torch_device(device)
         model = cls._create(model_id, variables, save_dir, torch_device, **model_config_dict)
         model_path = os.path.join(save_dir, cls._model_file)
-        model.load_state_dict(torch.load(model_path))
+        model.load_state_dict(torch.load(model_path, map_location=torch_device))
         return model
 
     def get_device(self) -> torch.device:

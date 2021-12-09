@@ -26,6 +26,7 @@ T = TypeVar("T", bound="SKLearnImputer")
 
 
 class SKLearnImputer(Model, IModelForImputation):
+    "TODO: deduplicate these file paths between DoWhy, CastleCausalLearner and SkLearnImputer"
     _model_config_path = "model_config.json"
     _model_type_path = "model_type.txt"
     _variables_path = "variables.json"

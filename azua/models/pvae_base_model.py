@@ -479,7 +479,8 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
         assert data.shape == observed_mask.shape
         assert data.shape == target_mask.shape
 
-        num_vars = len(self.variables)
+        data_non_aux = data[:, 0 : self.variables.num_processed_non_aux_cols]
+        num_non_aux_vars = self.variables.num_unprocessed_non_aux_cols
         batch_size, input_dim = data.shape
 
         # Collect samples
@@ -495,17 +496,21 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
             mask_nll = observed_mask
 
         nll = negative_log_likelihood(
-            data=data.repeat(num_importance_samples, 1),
-            decoder_mean=dec_mean.reshape(num_importance_samples * batch_size, input_dim),
-            decoder_logvar=dec_logvar.reshape(num_importance_samples * batch_size, input_dim),
+            data=data_non_aux.repeat(num_importance_samples, 1),
+            decoder_mean=dec_mean.reshape(
+                num_importance_samples * batch_size, self.variables.num_processed_non_aux_cols
+            ),
+            decoder_logvar=dec_logvar.reshape(
+                num_importance_samples * batch_size, self.variables.num_processed_non_aux_cols
+            ),
             variables=self.variables,
             alpha=self._alpha,
             mask=mask_nll.repeat(num_importance_samples, 1),
             sum_type=None,
-        )  # Shape (num_importance_samples * batch_size, num_vars)
+        )  # Shape (num_importance_samples * batch_size, num_non_aux_vars)
         nll = nll.reshape(
-            num_importance_samples, batch_size, num_vars
-        )  # Shape (num_importance_samples, batch_size, num_vars)
+            num_importance_samples, batch_size, num_non_aux_vars
+        )  # Shape (num_importance_samples, batch_size, num_non_aux_vars
         nll = nll.sum(dim=2)  # Shape (num_importance_samples, batch_size)
 
         # Calculate log latent variational log[q(z|x)]

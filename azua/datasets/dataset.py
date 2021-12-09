@@ -1,11 +1,12 @@
 import numpy as np
 import os
 from scipy.sparse import csr_matrix, issparse
-from typing import cast, Optional, Tuple, Dict, Any, Union
+from typing import cast, Optional, Tuple, Dict, Any, Union, List
 import warnings
 
 from ..datasets.variables import Variables
 from ..utils.io_utils import save_json
+from .intervention_data import IntervetionData
 
 from torch_geometric.data import Data
 
@@ -155,6 +156,46 @@ class Dataset(BaseDataset):
             data_split=self._data_split,
         )
 
+    def to_causal(self, adjacency_data: Optional[np.ndarray], intervention_data: Optional[List[IntervetionData]]):
+        """
+        Return the dag version of this dataset.
+        """
+        return CausalDataset(
+            train_data=self._train_data,
+            train_mask=self._train_mask,
+            adjacency_data=adjacency_data,
+            intervention_data=intervention_data,
+            val_data=self._val_data,
+            val_mask=self._val_mask,
+            test_data=self._test_data,
+            test_mask=self._test_mask,
+            variables=self._variables,
+            data_split=self._data_split,
+        )
+
+    def to_temporal(
+        self,
+        adjacency_data: Optional[np.ndarray],
+        intervention_data: Optional[List[IntervetionData]],
+        transition_matrix: Optional[np.ndarray],
+    ):
+        """
+        Return the dag version of this dataset.
+        """
+        return TemporalDataset(
+            train_data=self._train_data,
+            train_mask=self._train_mask,
+            transition_matrix=transition_matrix,
+            adjacency_data=adjacency_data,
+            intervention_data=intervention_data,
+            val_data=self._val_data,
+            val_mask=self._val_mask,
+            test_data=self._test_data,
+            test_mask=self._test_mask,
+            variables=self._variables,
+            data_split=self._data_split,
+        )
+
 
 class SparseDataset(BaseDataset):
     """
@@ -236,3 +277,76 @@ class GraphDataset(SparseDataset):
         Return the torch_geometric.data.Data object from the GraphDataset object.
         """
         return self._graph_data
+
+
+class CausalDataset(Dataset):
+    """
+    Class to store the np.ndarray adjacency matrix and samples
+     from the intervention distributions as attributes of the Dataset object.
+    """
+
+    def __init__(
+        self,
+        train_data: np.ndarray,
+        train_mask: np.ndarray,
+        adjacency_data: Optional[np.ndarray],
+        intervention_data: Optional[List[IntervetionData]],
+        val_data: Optional[np.ndarray] = None,
+        val_mask: Optional[np.ndarray] = None,
+        test_data: Optional[np.ndarray] = None,
+        test_mask: Optional[np.ndarray] = None,
+        variables: Optional[Variables] = None,
+        data_split: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super().__init__(train_data, train_mask, val_data, val_mask, test_data, test_mask, variables, data_split)
+
+        self._intervention_data = intervention_data
+        self._adjacency_data = adjacency_data
+
+    def get_adjacency_data_matrix(self) -> np.ndarray:
+        """
+        Return the np.ndarray dag adjacency matrix.
+        """
+        if self._adjacency_data is None:
+            raise TypeError("Adjacency matrix is None. No adjacency matrix has been loaded.")
+        return self._adjacency_data
+
+    def get_intervention_data(self) -> List[IntervetionData]:
+        """
+        Return the list of interventions and samples from intervened distributions
+        """
+        if self._intervention_data is None:
+            raise TypeError("Intervention data is None. No intervention data has been loaded.")
+        return self._intervention_data
+
+
+class TemporalDataset(CausalDataset):
+    def __init__(
+        self,
+        train_data: np.ndarray,
+        train_mask: np.ndarray,
+        transition_matrix: Optional[np.ndarray],
+        adjacency_data: Optional[np.ndarray],
+        intervention_data: Optional[List[IntervetionData]],
+        val_data: Optional[np.ndarray] = None,
+        val_mask: Optional[np.ndarray] = None,
+        test_data: Optional[np.ndarray] = None,
+        test_mask: Optional[np.ndarray] = None,
+        variables: Optional[Variables] = None,
+        data_split: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        super(CausalDataset, self).__init__(
+            train_data, train_mask, val_data, val_mask, test_data, test_mask, variables, data_split
+        )
+
+        self._intervention_data = intervention_data
+        self._adjacency_data = adjacency_data
+        self._transition_matrix = transition_matrix
+
+    def get_transition_matrix(self) -> np.ndarray:
+        """
+        Return the np.ndarray transition matrix.
+        """
+        if self._transition_matrix is None:
+            raise TypeError("Transition matrix is None. No transition matrix has been loaded.")
+        return self._transition_matrix

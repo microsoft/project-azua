@@ -48,6 +48,8 @@ onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Doc
                         device=self._device,
                         non_linearity=Identity,
                     )
+
+                    self._prior_net.train(False)
             else:
                 self._prior_net = Encoder(
                     input_dim=self._prior_net_input_dim,
@@ -64,9 +66,9 @@ onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Doc
 
     @staticmethod
     def _create_mask_variables(variables):
-        mask_variables = []
+        mask_all_variables = []
         for x_variable in variables:
-            mask_variable = Variable(
+            mask_all_variable = Variable(
                 name=f"R_{x_variable.name}",
                 query=False,
                 always_observed=True,
@@ -75,10 +77,12 @@ onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Doc
                 upper=1,
                 overwrite_processed_dim=x_variable.processed_dim,
             )
-            mask_variables.append(mask_variable)
+            mask_all_variables.append(mask_all_variable)
 
-        variables = Variables(mask_variables)
-        return variables
+        mask_variables = mask_all_variables[0 : variables.num_unprocessed_non_aux_cols]
+        mask_aux_variables = mask_all_variables[variables.num_unprocessed_non_aux_cols :]
+
+        return Variables(mask_variables, mask_aux_variables)
 
     def _create_mask_nn(self, variables, device: torch.device):
         """
@@ -94,9 +98,9 @@ onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Doc
         #  if latent connection is true, our mask net model will be specified by the connections Z->X->mask and Z->mask
         #  otherwise, it is just the Z->X->mask model
         if self._mask_net_config["latent_connection"]:
-            mask_net_input_dim = variables.num_processed_cols + self.latent_dim
+            mask_net_input_dim = variables.num_processed_non_aux_cols + self.latent_dim
         else:
-            mask_net_input_dim = variables.num_processed_cols
+            mask_net_input_dim = variables.num_processed_non_aux_cols
         output_dim = variables.num_processed_cols
         mask_variables = self._create_mask_variables(variables)
         if self._mask_net_config["latent_connection"]:
@@ -135,18 +139,18 @@ onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Doc
             negative log likelihood: for tracking training. nll summed over all batches.
         """
         # pass through encoder and decoder
-        (dec_mean_x, dec_logvar_x), _, (enc_mean, enc_logvar) = self._generate_from_inference_net(x, input_mask)
+        (dec_mean_x, dec_logvar_x), posterior_samples, (enc_mean, enc_logvar) = self._generate_from_inference_net(
+            x, input_mask
+        )
 
         use_prior_net = self._prior_net_config["use_prior_net_to_train"] and (
             any(self._prior_net_input_list) or self._prior_net_config["degenerate_prior"] != "gaussian"
         )
         if use_prior_net:
-            _, prior_samples, (prior_mean_x, prior_logvar_x) = self._generate_from_prior_net(x, input_mask)
+            _, _, (prior_mean_x, prior_logvar_x) = self._generate_from_prior_net(x, input_mask)
         else:
             prior_mean_x = torch.zeros_like(enc_mean)
             prior_logvar_x = torch.zeros_like(enc_mean)
-            gaussian = tdist.Normal(torch.zeros(self.latent_dim), torch.ones(self.latent_dim))
-            prior_samples = gaussian.sample((x.size(0),)).to(self._device)
 
         # compute loss
         # KL divergence between approximate posterior q and prior p
@@ -155,15 +159,19 @@ onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Doc
         else:
             kl = kl_divergence((enc_mean, enc_logvar)).sum()
 
-        mixed_x = dec_mean_x * (1 - input_mask) + x * input_mask
+        mixed_x = (
+            dec_mean_x * (1 - input_mask[:, 0 : self._mask_variables.num_processed_non_aux_cols])
+            + x[:, 0 : self._mask_variables.num_processed_non_aux_cols]
+            * input_mask[:, 0 : self._mask_variables.num_processed_non_aux_cols]
+        )
         if self._mask_net_config["latent_connection"]:
-            mask_net_input = torch.cat([mixed_x, prior_samples], 1)
+            mask_net_input = torch.cat([mixed_x, posterior_samples.reshape([mixed_x.shape[0], -1])], 1)
             (dec_mean_mask, _) = self._mask_net(mask_net_input)
         else:
             mask_net_input = mixed_x
             dec_mean_mask = self._mask_net(mask_net_input)
         nll_mask = negative_log_likelihood(
-            scoring_mask,
+            scoring_mask[:, 0 : self._mask_variables.num_processed_non_aux_cols],
             dec_mean_mask,
             torch.zeros_like(dec_mean_mask),
             self._mask_variables,
@@ -200,7 +208,7 @@ onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Doc
             negative log likelihood: for tracking training. nll summed over all batches.
         """
         # pass through encoder and decoder
-        (dec_mean_x, dec_logvar_x), latent_samples, (enc_mean, enc_logvar) = self._generate_from_inference_net(
+        (dec_mean_x, dec_logvar_x), posterior_samples, (enc_mean, enc_logvar) = self._generate_from_inference_net(
             x, input_mask, count=self.importance_count
         )
 
@@ -208,14 +216,12 @@ onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Doc
             any(self._prior_net_input_list) or self._prior_net_config["degenerate_prior"] != "gaussian"
         )
         if use_prior_net:
-            _, prior_samples, (prior_mean_x, prior_logvar_x) = self._generate_from_prior_net(
+            _, _, (prior_mean_x, prior_logvar_x) = self._generate_from_prior_net(
                 x, input_mask, count=self.importance_count
             )
         else:
             prior_mean_x = torch.zeros_like(enc_mean)
             prior_logvar_x = torch.zeros_like(enc_mean)
-            gaussian = tdist.Normal(torch.zeros(self.latent_dim), torch.ones(self.latent_dim))
-            prior_samples = gaussian.sample((self.importance_count, x.size(0),)).to(self._device)
 
         batch_size, feature_count = x.shape
         dec_mean_x = dec_mean_x.reshape(-1, feature_count)
@@ -227,16 +233,18 @@ onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Doc
             x, dec_mean_x, dec_logvar_x, self.variables, self._alpha, scoring_mask, sum_type=None
         )
 
-        mixed_x = dec_mean_x * (1 - input_mask) + x * input_mask
-        prior_samples = prior_samples.reshape(-1, self.latent_dim)
+        mixed_x = (
+            dec_mean_x * (1 - input_mask[:, 0 : self._mask_variables.num_processed_non_aux_cols])
+            + x * input_mask[:, 0 : self._mask_variables.num_processed_non_aux_cols]
+        )
         if self._mask_net_config["latent_connection"]:
-            mask_net_input = torch.cat([mixed_x, prior_samples], 1)
+            mask_net_input = torch.cat([mixed_x, posterior_samples.reshape([mixed_x.shape[0], -1])], 1)
             (dec_mean_mask, _) = self._mask_net(mask_net_input)
         else:
             mask_net_input = mixed_x
             dec_mean_mask = self._mask_net(mask_net_input)
         nll_mask = negative_log_likelihood(
-            scoring_mask,
+            scoring_mask[:, 0 : self._mask_variables.num_processed_non_aux_cols],
             dec_mean_mask,
             torch.zeros_like(dec_logvar_x),
             self._mask_variables,
@@ -248,17 +256,17 @@ onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Doc
         nll = nll.sum(1).reshape(-1, batch_size)
         if self._prior_net_config["use_prior_net_to_train"]:
             importance_weights = gaussian_negative_log_likelihood(
-                latent_samples, prior_mean_x, prior_logvar_x, mask=None, sum_type=None
+                posterior_samples, prior_mean_x, prior_logvar_x, mask=None, sum_type=None
             ).sum(2) - gaussian_negative_log_likelihood(
-                latent_samples, enc_mean, enc_logvar, mask=None, sum_type=None
+                posterior_samples, enc_mean, enc_logvar, mask=None, sum_type=None
             ).sum(
                 2
             )
         else:
             importance_weights = gaussian_negative_log_likelihood(
-                latent_samples, torch.zeros_like(enc_mean), torch.zeros_like(enc_logvar), mask=None, sum_type=None
+                posterior_samples, torch.zeros_like(enc_mean), torch.zeros_like(enc_logvar), mask=None, sum_type=None
             ).sum(2) - gaussian_negative_log_likelihood(
-                latent_samples, enc_mean, enc_logvar, mask=None, sum_type=None
+                posterior_samples, enc_mean, enc_logvar, mask=None, sum_type=None
             ).sum(
                 2
             )
@@ -293,7 +301,7 @@ onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Doc
         # Run through the encoder.
         if not any(self._prior_net_input_list):
             if not self._prior_net_config["degenerate_prior"] == "gaussian":
-                prior_net_input = mask
+                prior_net_input = mask  # this is only used when there are no aux variables
                 encoder_mean, encoder_logvar = self._prior_net(
                     prior_net_input
                 )  # Each with shape (batch_size, latent_dim)

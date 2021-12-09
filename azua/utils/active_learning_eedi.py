@@ -16,6 +16,7 @@ from ..utils.synthetic_imputations import synthetic_fill_variables
 from typing import Dict, List
 
 
+# This is on BO based next best action for eedi with heuristic dynamics
 def run_active_learning_strategy_eedi(
     objective, model, data, mask, vamp_prior_data, max_steps, impute_config, objective_config,
 ):

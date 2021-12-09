@@ -3,17 +3,26 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 from ..datasets.cifar10_dataset_loader import CIFAR10DatasetLoader
 from ..datasets.csv_dataset_loader import CSVDatasetLoader
-from ..datasets.dataset import Dataset, SparseDataset, GraphDataset
+from ..datasets.dataset import Dataset, SparseDataset, GraphDataset, CausalDataset, TemporalDataset
 from ..datasets.mnist_dataset_loader import MNISTDatasetLoader
 from ..datasets.sparse_csv_dataset_loader import SparseCSVDatasetLoader
 
 from ..datasets.gnn_sparse_csv_dataset_loader import GNNSparseCSVDatasetLoader
 from ..datasets.gnn_csv_dataset_loader import GNNCSVDatasetLoader
+from ..datasets.causal_csv_dataset_loader import CausalCSVDatasetLoader
+from ..datasets.temporal_causal_csv_dataset_loader import TemporalCausalCSVDatasetLoader
 
 
 def create_dataset_loader(
     data_dir: str, dataset_name: str, dataset_format: str = "csv"
-) -> Union[CSVDatasetLoader, SparseCSVDatasetLoader, MNISTDatasetLoader, CIFAR10DatasetLoader]:
+) -> Union[
+    CSVDatasetLoader,
+    SparseCSVDatasetLoader,
+    MNISTDatasetLoader,
+    CIFAR10DatasetLoader,
+    CausalCSVDatasetLoader,
+    TemporalCausalCSVDatasetLoader,
+]:
     """
     Factory method to create an instance of dataset loader using the information about dataset name and dataset format.
 
@@ -45,6 +54,12 @@ def create_dataset_loader(
     if dataset_format == "gnn_csv":
         return GNNCSVDatasetLoader(dataset_dir)
 
+    if dataset_format == "causal_csv":
+        return CausalCSVDatasetLoader(dataset_dir)
+
+    if dataset_format == "temporal_causal_csv":
+        return TemporalCausalCSVDatasetLoader(dataset_dir)
+
     raise NotImplementedError(
         f"Dataset format {dataset_format} not supported. Valid dataset formats are 'csv' and 'sparse_csv'."
     )
@@ -52,7 +67,7 @@ def create_dataset_loader(
 
 def load_dataset_from_config(
     data_dir: str, dataset_name: str, dataset_config: Dict[str, Any], max_num_rows: Optional[int] = None, **kwargs,
-) -> Union[Dataset, SparseDataset, GraphDataset]:
+) -> Union[Dataset, SparseDataset, GraphDataset, CausalDataset, TemporalDataset]:
     """
     Factory method to load a dataset using the dataset config dict and the information about dataset name and dataset
     format.
@@ -88,7 +103,7 @@ def split_data_and_load_dataset(
     random_state: Union[int, Tuple[int, int]],
     max_num_rows: Optional[int] = None,
     **kwargs,
-) -> Union[Dataset, SparseDataset, GraphDataset]:
+) -> Union[Dataset, SparseDataset, GraphDataset, CausalDataset, TemporalDataset]:
     """
     Factory method to split data and load a dataset using the information about dataset name and dataset format.
     The data is split deterministically given the random state. If the given random state is a pair of integers,
@@ -106,17 +121,17 @@ def split_data_and_load_dataset(
         max_num_rows: Maximum number of rows to include when reading data files.
 
     Returns:
-        dataset: Dataset, SparseDataset, or GraphDataset object, holding the data and variable metadata.
+        dataset: Dataset, SparseDataset, GraphDataset or CausalDataset object, holding the data and variable metadata.
     """
     dataset_loader = create_dataset_loader(data_dir=data_dir, dataset_name=dataset_name, dataset_format=dataset_format)
     return dataset_loader.split_data_and_load_dataset(
-        test_frac, val_frac, random_state, max_num_rows=max_num_rows, **kwargs
+        test_frac, val_frac, random_state=random_state, max_num_rows=max_num_rows, **kwargs
     )
 
 
 def load_predefined_dataset(
     data_dir: str, dataset_name: str, dataset_format: str, max_num_rows: Optional[int] = None, **kwargs
-) -> Union[Dataset, SparseDataset, GraphDataset]:
+) -> Union[Dataset, SparseDataset, GraphDataset, CausalDataset, TemporalDataset]:
     """
     Factory method to load a predefined dataset using the information about dataset name and dataset format.
 
@@ -128,7 +143,7 @@ def load_predefined_dataset(
         max_num_rows: Maximum number of rows to include when reading data files.
 
     Returns:
-        dataset: Dataset, SparseDataset, GraphDataset object, holding the data and variable metadata.
+        dataset: Dataset, SparseDataset, GraphDataset or CausalDataset object, holding the data and variable metadata.
     """
     dataset_loader = create_dataset_loader(data_dir=data_dir, dataset_name=dataset_name, dataset_format=dataset_format)
     return dataset_loader.load_predefined_dataset(max_num_rows=max_num_rows, **kwargs)

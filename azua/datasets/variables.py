@@ -459,28 +459,28 @@ class Variables:
     @property
     def num_unprocessed_cols(self) -> int:
         """
-        Return number of columns in the unprocessed data represented by the variables
+        Return number of columns in the unprocessed data represented by all variables
         """
         return sum([len(idxs) for idxs in self.unprocessed_cols])
 
     @property
     def num_unprocessed_non_aux_cols(self) -> int:
         """
-        Return number of columns in the unprocessed data represented by the variables
+        Return number of columns in the unprocessed data represented by non auxiliary variables
         """
         return sum([len(idxs) for idxs in self.unprocessed_non_aux_cols])
 
     @property
     def num_processed_cols(self) -> int:
         """
-        Return number of columns in the processed data represented by the variables
+        Return number of columns in the processed data represented by all variables
         """
         return sum([len(idxs) for idxs in self.processed_cols])
 
     @property
     def num_processed_non_aux_cols(self) -> int:
         """
-        Return number of columns in the processed data represented by the variables
+        Return number of columns in the processed data represented by non auxiliary variables
         """
         return sum([len(idxs) for idxs in self.processed_non_aux_cols])
 
@@ -490,6 +490,19 @@ class Variables:
         Return the number of unique query groups in the variables object.
         """
         return len(self.query_group_names)
+
+    @property
+    def group_mask(self) -> np.ndarray:
+        """
+        Return a mask of shape (num_groups, num_processed_cols) indicating which column
+        corresponds to which group.
+        """
+        mask = np.zeros((self.num_query_groups, self.num_processed_cols), dtype=np.bool)
+        for group_idx, group in enumerate(self.query_group_idxs):
+            for var in group:
+                for proc_col in self.processed_cols[var]:
+                    mask[group_idx, proc_col] = 1
+        return mask
 
     @property
     def proc_always_observed_list(self) -> List[Optional[bool]]:

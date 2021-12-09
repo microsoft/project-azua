@@ -206,3 +206,26 @@ class IModelForCausalInference(IModel):
         Returns adjacency matrix learned as a numpy array
         """
         raise NotImplementedError
+
+
+class IModelForInterventions(IModel):
+    @abstractmethod
+    def sample(self):
+        """
+        Sample from distribution over observations learned by the model. Optionally modify the distribution through interventions.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def log_prob(self):
+        """
+        Evaluate log probability of observations from distribution over observations learned by the model. Optionally modify the distribution through interventions.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def cate(self):
+        """
+        Evaluate (optionally conditional) average treatment effect given the learnt causal model.
+        """
+        raise NotImplementedError

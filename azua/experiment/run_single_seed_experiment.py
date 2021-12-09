@@ -1,3 +1,4 @@
+from ..datasets.dataset import CausalDataset
 from dependency_injector.wiring import Provide, inject
 from .azua_context import AzuaContext
 import logging
@@ -7,9 +8,9 @@ from ..experiment.steps.active_learning_step import run_active_learning_main
 from ..experiment.steps.train_step import run_train_main
 from ..experiment.steps.eval_step import run_eval_main
 from ..experiment.steps.step_func import load_data, preprocess_configs
-from ..experiment.steps.eval_step import eval_causality
+from ..experiment.steps.eval_step import eval_treatment_effects, eval_causal_discovery
 from ..models.models_factory import load_model
-from ..models.imodel import IModelForObjective, IModelForImputation, IModelForCausalInference
+from ..models.imodel import IModelForObjective, IModelForImputation, IModelForCausalInference, IModelForInterventions
 from ..models.transformer_imputer import TransformerImputer
 import os
 import time
@@ -28,7 +29,8 @@ def run_single_seed_experiment(
     active_learning: Optional[List[str]],
     max_steps: float,
     max_al_rows: float,
-    eval_causal_discovery: bool,
+    causal_discovery: bool,
+    treatment_effects: bool,
     device: str,
     quiet: bool,
     active_learning_users_to_plot,
@@ -43,13 +45,25 @@ def run_single_seed_experiment(
     experiment_name: str,
     model_seed: int,
     aml_tags: Dict[str, Any],
+    logger_level: str,
+    eval_likelihood: bool = True,
     azua_context: AzuaContext = Provide[AzuaContext],
 ):
 
     # Set up loggers
     logger = logging.getLogger()
     log_format = "%(asctime)s %(filename)s:%(lineno)d[%(levelname)s]%(message)s"
-    level = logging.ERROR if quiet else logging.INFO
+    if quiet:
+        level = logging.ERROR
+    else:
+        level_dict = {
+            "ERROR": logging.ERROR,
+            "INFO": logging.INFO,
+            "CRITICAL": logging.CRITICAL,
+            "WARNING": logging.WARNING,
+            "DEBUG": logging.DEBUG
+        }
+        level = level_dict[logger_level]
     logging.basicConfig(level=level, force=True, format=log_format)
     metrics_logger = azua_context.metrics_logger()
     metrics_logger.set_tags(aml_tags)
@@ -92,6 +106,7 @@ def run_single_seed_experiment(
         running_times["train/running-time"] = (time.time() - start_time) / 60
     save_json(dataset_config, os.path.join(model.save_dir, "dataset_config.json"))
     save_txt(dataset_name, os.path.join(model.save_dir, "dataset_name.txt"))
+
     # Imputation
     if run_inference:
         if not isinstance(model, IModelForImputation):
@@ -121,18 +136,24 @@ def run_single_seed_experiment(
         )
 
     # Evaluate causal discovery (only for vicause at the moment)
-    if eval_causal_discovery:
+    if causal_discovery:
         assert isinstance(model, IModelForCausalInference)
         causal_model = cast(IModelForCausalInference, model)
-        # Setting directory where matrix should be stored
-        adj_ground_truth_path = os.path.join(data_dir, dataset_name, "adj_matrix.csv")
-        eval_causality(logger, dataset, causal_model, adj_ground_truth_path, metrics_logger)
+        eval_causal_discovery(logger, dataset, causal_model, metrics_logger)
+
+    # Treatment effect estimation
+    if treatment_effects:
+        if not isinstance(model, IModelForInterventions):
+            raise ValueError("This model class does not support treatment effect estimation.")
+        if not isinstance(dataset, CausalDataset):
+            raise ValueError("This dataset type does not support treatment effect estimation.")
+        eval_treatment_effects(logger, dataset, model, metrics_logger, eval_likelihood)
 
     # Active learning
     if active_learning is not None:
         # TODO 'rand' active learning is valid for any imputation model, not just these two
         assert isinstance(model, (IModelForObjective, TransformerImputer))
-        if "eddi" in active_learning or "sing" in active_learning:
+        if "eddi" in active_learning or "sing" in active_learning or "cond_sing" in active_learning:
             assert isinstance(model, IModelForObjective)
         if "variance" in active_learning:
             assert isinstance(model, TransformerImputer)

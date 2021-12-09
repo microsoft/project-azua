@@ -2,12 +2,11 @@ import numpy as np
 
 from ..datasets.variables import Variables
 from ..models.imodel import IModelForObjective
-from ..objectives.eddi import EDDIObjective
-
+from ..objectives.eddi_base import EDDIBaseObjective
 from typing import List
 
 
-class SINGObjective(EDDIObjective):
+class SINGObjective(EDDIBaseObjective):
     """"
     SING objective.
     """

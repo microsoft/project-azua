@@ -3,7 +3,7 @@
 from ...datasets.sparse_csv_dataset_loader import SparseCSVDatasetLoader
 from ...datasets.datasets_factory import create_dataset_loader
 import os
-from ...datasets.dataset import Dataset, SparseDataset
+from ...datasets.dataset import Dataset, SparseDataset, CausalDataset
 from typing import Any, Dict, Tuple, Union
 
 
@@ -48,7 +48,7 @@ def preprocess_configs(
     model_config: Dict[str, Any],
     train_hypers: Dict[str, Any],
     model_type: str,
-    dataset: Union[Dataset, SparseDataset],
+    dataset: Union[Dataset, SparseDataset, CausalDataset],
     data_dir: str,
     tiny: bool,
 ):
@@ -57,6 +57,10 @@ def preprocess_configs(
         if model_type in ["vaem", "vaem_predictive", "transformer_encoder_vaem"]:
             train_hypers["marginal_epochs"] = 2
             train_hypers["dep_epochs"] = 2
+        elif model_type in ["fcause_dowhy"]:
+            train_hypers["discovery_epochs"] = 2
+            train_hypers["discovery_max_steps_auglag"] = 1
+            train_hypers["discovery_max_epochs_per_step"] = 2
         else:
             train_hypers["epochs"] = 2
 

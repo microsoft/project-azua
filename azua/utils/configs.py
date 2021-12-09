@@ -25,7 +25,7 @@ def get_configs(
         model_type: Name of model, e.g. 'pvae' or 'vaem'
         dataset_name: Name of dataset - will first look for a dataset + model config, then fall back to just model.
         override_model_path: Path to model config file with values to override.
-        override_dataset_path: Path to dataset condig file with values to override.
+        override_dataset_path: Path to dataset config file with values to override.
         override_impute_path: Path to imputation config file with values to override.
         override_objective_path: Path to objective config file with values to override.
         parameters_dir: Path to directory containing default parameters for models and datasets.

@@ -30,6 +30,13 @@ ICML 2021 workshop on the Neglected Assumptions in Causal Inference
 
 [5], **(CORGI:)** Jooyeon Kim, Angus Lamb, Simon Woodhead, Simon Pyton Jones, Cheng Zhang, and Miltiadis Allamanis. CORGI: Content-Rich Graph Neural Networks with Attention. In GReS: Workshop on Graph Neural Networks for Recommendation and Search, 2021
 
+[6], **(GINA)** Chao Ma and Cheng Zhang. Identifiable Generative Models for Missing Not at Random Data Imputation. In Advances in Neural Information Processing Systems 34 (2021)
+
+[7], **(Transformer PVAE, Transformer encoder PVAE, Rupert)** Sarah Lewis, Tatiana Matejovicova, Angus Lamb, Yordan Zaykov, 
+Miltiadis Allamanis, and Cheng Zhang. Accurate Imputation and Efficient Data Acquisition with 
+Transformer-based VAEs.  In NeurIPS: Workshop on Deep Generative Models and Applications (2021)
+
+
 ### Resources
 
 For quick introduction to our work, checkout [our NeurIPS 2020 tutorial, from 2:17:11](https://slideslive.com/38943571/advances-in-approximate-inference).
@@ -63,6 +70,8 @@ Our active information acquisition functionality has two modes: i) if there is a
 variable) that the user wants to predict, then Azua will suggest the next variable to collect, that is most valuable to 
 predicting that particular target variable. ii) otherwise, Azua will make decisions using built-in criterion.   
 
+If you are interested in using service API of MVP or NBQ, please read [here](https://techcommunity.microsoft.com/t5/ai-customer-engineering-team/using-ai-to-know-which-question-to-ask-and-when-to-ask-it/ba-p/2768799)
+
 ### 1.3 Causal discovery under missing data (CD)
 
 The underlying causal relationships behind data crucial for real-world decision making. However, discovering causal
@@ -75,7 +84,7 @@ structures under incomplete information is difficult. Azua provide state-of-the-
 
 A [conda environment](environment.yml) is used to manage system requirements. To install conda, check the
 installation instructions [here](https://docs.conda.io/en/latest/miniconda.html).
-To create the azua environment, after initializing submodules as above, run
+To create the azua environment, run
 
 ```bash
 conda env create -f environment.yml
@@ -129,9 +138,9 @@ Model | Description | Functionalities | Example usage
 [Transformer imputer/Rupert](azua/models/transformer_imputer.py)                | A simple transformer model. <br /> See [our paper](**TODO**) | MVP, NBQ | `python run_experiment.py boston -mt transformer_imputer -a variance rand`
 [VICause](azua/models/vicause.py)                                               | Causal discovery from data with <br />  missing features <br />  and imputation. [link to paper](https://www.microsoft.com/en-us/research/publication/vicause-simultaneous-missing-value-imputation-and-causal-discovery/). | MVP, CD | `python run_experiment.py eedi_task_3_4_topics -mt vicause`
 [CoRGi](azua/models/corgi.py)                                                   |  GNN-based imputation with <br /> emphasis on item-related data  <br /> based on [Kim et al.](https://toappear) | MVP | See 5.7.1-5.7.4 for details. 
-[Graph Convolutional Network (GCN)](models/graph_convolutional_network.py) |  GNN-based imputation based <br /> on [Kipf et al.](https://arxiv.org/abs/1609.02907) | MVP | See *5.7.2-5.7.4* for details. 
+[Graph Convolutional Network (GCN)](azua/models/graph_convolutional_network.py) |  GNN-based imputation based <br /> on [Kipf et al.](https://arxiv.org/abs/1609.02907) | MVP | See *5.7.2-5.7.4* for details. 
 [GRAPE](azua/models/grape.py)                                                   |  GNN-based imputation based <br /> on [You et al.](https://snap.stanford.edu/grape/) | MVP | See *5.7.2-5.7.4* for details. 
-[Graph Convolutional Matrix Completion (GC-MC)](models/gcmc.py)            |   GNN-based imputation based <br /> on [van den Berg et al.](https://arxiv.org/abs/1706.02263) | MVP | See *5.7.2-5.7.4* for details. 
+[Graph Convolutional Matrix Completion (GC-MC)](azua/models/gcmc.py)            |   GNN-based imputation based <br /> on [van den Berg et al.](https://arxiv.org/abs/1706.02263) | MVP | See *5.7.2-5.7.4* for details. 
 [GraphSAGE](azua/models/graphsage.py)                                           |  GNN-based imputation based  <br /> on [Hamilton et al.](https://proceedings.neurips.cc/paper/2017/hash/5dd9db5e033da9c6fb5ba83c7a7ebea9-Abstract.html) | MVP | See [5.7.2-5.7.4](####5.7.2 Different node initializations) for details. 
 [Graph Attention Network (GAT)](azua/models/graph_attention_network.py)         | Attention-based GNN imputation  <br /> based on [Veličković et al.](https://arxiv.org/abs/1710.10903) | MVP | See [5.7.2-5.7.4](####5.7.2 Different node initializations) for details. 
 [Deep Matrix Factorization (DMF)](azua/models/deep_matrix_factorization.py)     | Matrix factorization with NN architecture. See [deep matrix factorization](https://www.ijcai.org/Proceedings/2017/0447.pdf.) | MVP | `python run_experiment.py eedi_task_3_4_binary -mt deep_matrix_factorization`
@@ -388,8 +397,7 @@ VAE, when combined with the mask net, will provide identifiability guarantees un
 PVAEs, identifiable PVAE uses a neural network, called the prior net, to define the prior distribution on latent space. 
 The prior net requires to take some fully observed auxiliary variables as inputs (you may think of it as some side 
 information), and generate the distribution on the latent space. By default, unless specified, we will automatically 
-treat fully observed variables as auxiliary variables. For more details, please see our paper (link will be available 
-in the future).
+treat fully observed variables as auxiliary variables.
 
 **Model configs**
 
@@ -410,6 +418,63 @@ Most of the model configs are the same as PVAE, except the following:
     variables. However, in some cases, fully observed variables might not be available (for example, in recommender 
     data). `"degenerate_prior"` will determine how we handle such degenerate case. Currently, we only support `"mask"` 
     method, which will use the missingness mask themselves as auxiliary variables. 
+
+
+**Data processing for Yahoo dataset**
+
+To download Yahoo dataset, you need to apply first here via this webpage [webpage.](https://consent.yahoo.com/v2/collectConsent?sessionId=3_cc-session_f8d7b45f-c09b-473f-99c6-d27adf00f176) 
+Once you have received the data, simply unzip it and you will get  `ydata-ymusic-rating-study-v1_0-train.txt` and `ydata-ymusic-rating-study-v1_0-test.txt`.
+Since the train/test split in files are already provided, we only need to convert the two `.txt` files to `.csv` format
+(simply copy and paste the data in two `.txt` file to `train.csv` and `test.csv` respectively, and put them under `data/yahoo/`). 
+This resulting dataset contains an MNAR training set of more than 300K self-selected ratings from 15,400 users on 1,000 
+songs, and an MCAR test set of randomly selected ratings from 5,400 users on 10 random songs. Currently, we treat all the 
+ratings as continuous variables. This can also be configured in `variables.json` by specifying the `"type"` field, which 
+is detailed in Section 6. Then, we can run the model by `python run_experiment.py yahoo -mt mnar_pvae -i`.
+
+**Handling auxiliary variables**
+
+As mentioned before, this model requires some fully observed auxiliary variables as inputs. In most cases, this is automatically 
+handled by our implementation: whenever there are columns that are fully observed across all data instances (i.e., 
+`"always_observed" = true` in the `variables.json` file), we will simply treat those columns as auxiliary variables. When all columns have at least 
+one entry missing, we will just take the missingness mask indicator as the auxiliary variables. It is also possible to 
+manually specify which variables are auxiliary, by simply editing the `variables.json` file. This can be done by specifying 
+the corresponding auxiliary variables under `"auxiliary_variables"` in `variables.json`. In the example below, we have 
+created a `variables.json` file with `var_1` being an auxiliary variable, and `var_2`, `var_3` being other normal variables 
+that we need to model.
+```
+{
+    "variables": [
+        {
+            "id": 2,
+            "lower": 0.0,
+            "name": "var_2",
+            "query": true,
+            "type": "continuous",
+            "upper": 10.0
+        },
+        {
+            "id": 3,
+            "lower": 0.0,
+            "name": "var_3",
+            "query": false,
+            "type": "continuous",
+            "upper": 10.0
+        }
+    ],
+    "auxiliary_variables": [
+        {
+            "id": 1,
+            "lower": 0.0
+            "name": "var_1",
+            "query": true,
+            "type": "continuous",
+            "upper": 10.0
+        }
+    ]
+}
+```
+
+
 
 ### 5.5 Bayesian partial VAE (B-PVAE)
 
@@ -562,6 +627,7 @@ Variable metadata for each variable in a dataset can be specified in an optional
 is an array of dictionaries, one for each variable in the dataset. For each variable, the following values may be 
 specified:
 
+* always_observed: bool, whether this variable is always observed across all data instances.
 * id: int, index of the variable in the dataset
 * query: bool, whether this variable can be queried during active learning (True) or is a target (False).
 * type: string, type of variable - either "continuous", "binary" or "categorical".

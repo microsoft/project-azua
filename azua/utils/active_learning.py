@@ -73,7 +73,7 @@ def run_active_learning(
     Run active learning over the test dataset.
 
     Args:
-        strategy (str): One of "eddi", "eddi_mc", "sing" or "rand".
+        strategy (str): One of "eddi", "eddi_mc", "sing", "cond_sing" or "rand".
         model (IModel): Model to use.
         test_data (numpy array of shape (user_count, variable_count)): Data to run active learning on.
         test_mask (numpy array of shape (user_count, variable_count)): 1 is observed, 0 is missing.
@@ -90,6 +90,8 @@ def run_active_learning(
             The shape of this is strategy dependent.
             If no information gain for this method, this is None.
             If info gain changes per step (e.g. EDDI), this is a list of length (step_count) of list of length
+                (user_count) of dictionaries {variable_id: info_gain}
+            If info gain is constant for all users but not steps (e.g. Cond_SING) this is a list of length
                 (user_count) of dictionaries {variable_id: info_gain}
             If info gain is constant for all steps and users (e.g. SING) this is a list of length
                 (step_count) of dictionaries {variable_id: info_gain}
