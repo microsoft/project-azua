@@ -9,7 +9,7 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import trange
-from scipy.sparse import issparse
+from scipy.sparse import spmatrix
 
 from ..datasets.variables import Variable, Variables
 from ..models.imodel import IModelForObjective
@@ -118,8 +118,8 @@ def run_active_learning(
 def run_active_learning_strategy(
     objective,
     model: Union[IModelForObjective, TransformerImputer],
-    data: np.ndarray,
-    mask: np.ndarray,
+    data: Union[np.ndarray, spmatrix],
+    mask: Union[np.ndarray, spmatrix],
     vamp_prior_data: Optional[Tuple[np.ndarray, np.ndarray]],
     max_steps: Optional[int],
     impute_config: Dict[str, Any],
@@ -144,7 +144,8 @@ def run_active_learning_strategy(
     all_info_gains = []  # List (step) of list (user) of info gain dicts.
     all_step_ids = np.full((user_count, max_steps), fill_value=-1, dtype=int)  # Shape (user, step)
 
-    if issparse(data):
+    if isinstance(data, spmatrix):
+        assert isinstance(mask, spmatrix)
         # For the time being, assume we will only run active learning on data that's small enough to store as a dense
         # array.
         assert data.shape[0] < 100000

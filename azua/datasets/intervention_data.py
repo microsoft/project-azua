@@ -1,13 +1,14 @@
 from typing import NamedTuple, Optional
+
 import numpy as np
 
 
-class IntervetionData(NamedTuple):
-    """
-    Class that acts as a container for intervened data
+class InterventionData(NamedTuple):
+    """Class that acts as a container for interventional (rank-2) or counterfactual (rank-3) data.
 
     Args:
-        conditioning_idxs: np.ndarray. 1d array containing the indices of each variable on which we condition on.
+        conditioning_idxs: np.ndarray. 1d array containing the indices of each variable on which we condition on. For counterfactuals,
+            all variables should be conditioned on.
         conditioning_values: np.ndarray. 1d array containing the values being assigned to the conditioned variables.
         effect_idxs: np.ndarray. 1d array containing the indices of each variable for which we want to evaluate the effect of the treatment.
         intervention_idxs: np.ndarray. 1d array containing the indices of each variable on which an intervention is made.
@@ -18,7 +19,7 @@ class IntervetionData(NamedTuple):
     """
 
     intervention_idxs: np.ndarray
-    intervention_values: np.ndarray
+    intervention_values: Optional[np.ndarray]
     test_data: np.ndarray
     conditioning_idxs: Optional[np.ndarray] = None
     conditioning_values: Optional[np.ndarray] = None

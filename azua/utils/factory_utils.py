@@ -13,11 +13,15 @@ def get_subclasses(directory: str, parent_class: Type[Any]):
         os.path.dirname(os.path.dirname(os.path.realpath(__file__))), directory,  # Root of the repository
     )
 
-    for subclass_file in os.listdir(subclass_dir):
-        subclass_file_name, ext = os.path.splitext(subclass_file)
-        if ext == ".py" and subclass_file != "__init__":
-            subclass_import_path = "azua.%s.%s" % (directory, subclass_file_name)
-            import_module(subclass_import_path)
+    for root, dirs, files in os.walk(subclass_dir):
+        if "__pycache__" in dirs:
+            dirs.remove("__pycache__")
+        for subclass_file in files:
+            subclass_path = os.path.relpath(os.path.join(root, subclass_file), subclass_dir)
+            subclass_file_name, ext = os.path.splitext(subclass_path)
+            if ext == ".py" and not subclass_file.endswith("__init__"):
+                subclass_import_path = "azua.%s.%s" % (directory, subclass_file_name.replace("/", "."))
+                import_module(subclass_import_path)
     subclass_list = parent_class.__subclasses__()
     return subclass_list
 

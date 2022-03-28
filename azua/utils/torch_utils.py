@@ -5,6 +5,7 @@ import numpy as np
 from scipy.sparse import issparse, csr_matrix
 import torch
 from torch.nn import Linear, Module, Sequential, Dropout
+import torch.distributions as dist
 from torch.utils.data import (
     Dataset,
     DataLoader,
@@ -232,3 +233,137 @@ class SparseTensorDataset(Dataset):
 
     def __len__(self):
         return self._matrices[0].shape[0]
+
+
+class LinearModel:
+    def __init__(self):
+        """
+        Simple linear regression model learnt using a Gaussian prior
+        """
+        self.w = None
+        self.posterior_prec = None
+
+    def fit(self, features: torch.Tensor, targets: torch.Tensor, prior_precision: float = 1):
+        """
+        Learn weights from data using MAP inference
+        Args:
+            features: (Npoints x Nfeatures) tensor with training features
+            targets: (Npoints,) tensor
+            prior_precision: Precision of an isotropic Gaussian prior (also known as ridge regulariser)
+        Returns:
+            None
+        """
+        assert len(targets) == features.shape[0]
+        assert len(features.shape) == 2
+
+        self.posterior_prec = (
+            features.T @ features
+            + torch.eye(features.shape[1], dtype=features.dtype, device=features.device) * prior_precision
+        )
+
+        self.w = torch.solve(features.T, self.posterior_prec)[0] @ targets
+
+    def predict(self, features: torch.Tensor, compute_covariance=False):
+        """
+        Make predictions
+        Args:
+            features: (Npoints x Nfeatures) tensor containing test features
+            compute_covariance: whether to compute and return a covariance matrix over test targets
+        Returns:
+            pred_mu: a (Npoints) tensor containing predicted values for the test points
+            pred_cov: A (Npoints x Npoints) covariance matrix if compute_covariance is True, else None
+        """
+        assert len(self.w) == features.shape[1]
+        assert self.w is not None, "model must be fit before it can make predictions"
+
+        pred_mu = features @ self.w
+        if compute_covariance:
+            pred_cov = features @ torch.solve(features.T, self.posterior_prec)[0]
+        else:
+            pred_cov = None
+
+        return pred_mu, pred_cov
+
+
+class MultiROFFeaturiser:
+    def __init__(self, rff_n_features: int, lengthscale: Union[int, float, List[float], Tuple[float, ...]] = (1e-1, 0.5)):
+        """
+        Random orthogonal fourier featuriser (https://proceedings.neurips.cc/paper/2016/file/53adaf494dc89ef7196d73636eb2451b-Paper.pdf) implementing sk-learn style fit and fit transform methods. 
+        Linear regression with RFF features approximates GP regression with an RBF kernel.
+        
+        Args:
+            rff_n_features: size of the feature expansion
+            lengthscale: of the equivalent RBF kernel if set to a float or int. If a 2 float tuple is specified,
+                 the lengthscale of each random feature will be sampled randomly from a uniform between the
+                 first and second tupples. This allows us to fit data for which we dont have prior lengthscale knowledge.
+        """
+        self.fitted = False
+        self.rff_n_features = rff_n_features
+        self.lengthscale = lengthscale
+        if isinstance(self.lengthscale, list) or isinstance(self.lengthscale, tuple):
+            assert len(self.lengthscale) == 2
+            assert self.lengthscale[0] < self.lengthscale[1]
+            assert self.lengthscale[0] > 0
+        else:
+            assert self.lengthscale > 0
+
+    def fit(self, X: torch.Tensor):
+        """
+        Generate random coefficients from the shape of the training data
+        Args:
+            X: temsor of size (n_samples, n_features)
+        """
+        _, n_data_features = X.shape
+        size = (n_data_features, n_data_features)
+        # We compute random features in orthogonal blocks of size n_data_features
+        n_stacks = int(np.ceil(self.rff_n_features / n_data_features))
+        # As a result of orthogonality constraint we can have slightly more random features than specified
+        rff_n_features = n_stacks * n_data_features
+
+        random_weights_ = []
+        for _ in range(n_stacks):
+            # Iterate over stacks, building feature coefficients orthogonal in the dimension of the observations
+            W = torch.randn(size, dtype=X.dtype, device=X.device)
+            Q, _ = torch.qr(W, some=False)
+
+            chi2 = (
+                dist.Chi2(df=torch.tensor([n_data_features], dtype=X.dtype, device=X.device))
+                .sample((n_data_features,))
+                .sqrt()
+                .squeeze()
+            )
+            if chi2.numel() > 1:
+                chi2 = chi2.diag()
+            else:
+                chi2 = chi2.unsqueeze(0)
+            SQ = Q @ chi2  # size (n_data_features, n_data_features)
+            random_weights_ += [SQ]
+
+        self.random_weights_ = torch.vstack(random_weights_).T  # Shape (n_data_features, rff_n_features)
+
+        if isinstance(self.lengthscale, list) or isinstance(self.lengthscale, tuple):
+            # Marginalise lengthscale over some uniform prior to provide a more flexible function class
+            lengthscale = (
+                torch.rand(1, n_stacks, dtype=X.dtype, device=X.device) * (self.lengthscale[1] - self.lengthscale[0])
+                + self.lengthscale[0]
+            )
+            lengthscale = lengthscale.repeat_interleave(n_data_features).unsqueeze(0)
+        else:
+            # Scale feature coefficients by fixed lengthscale
+            lengthscale = self.lengthscale
+
+        self.random_weights_ /= lengthscale
+        # Generate random bias term
+        self.random_offset_ = torch.rand(rff_n_features, dtype=X.dtype, device=X.device) * np.pi * 2
+
+        self.fitted = True
+
+    def transform(self, X: torch.Tensor):
+        """
+        Apply random featurisation to observation X of of size (-, n_features)
+        """
+        assert self.fitted, "fit must be run before transform"
+        output = X @ self.random_weights_
+        output = torch.cos(output + self.random_offset_)
+        output *= np.sqrt(2)
+        return output / np.sqrt(self.rff_n_features)

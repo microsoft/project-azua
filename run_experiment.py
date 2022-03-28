@@ -18,15 +18,14 @@ To see information about other options, run this script with -h.
 """
 
 import argparse
-
-from dependency_injector.wiring import Provide, inject
-import textwrap
 import os
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+import textwrap
 import time
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+from dependency_injector.wiring import Provide, inject
 
 if __name__ == "__main__":
     from azua.experiment.azua_context import AzuaContext
@@ -34,7 +33,7 @@ if __name__ == "__main__":
     from azua.experiment.run_single_seed_experiment import run_single_seed_experiment
     from azua.utils.configs import get_configs
     from azua.utils.run_utils import find_local_model_dir, create_models_dir
-    from azua import models
+    from azua import models  # type: ignore
 else:
     from .azua.experiment.azua_context import AzuaContext
     from .azua.experiment.run_aggregation import run_aggregation
@@ -77,12 +76,27 @@ def get_parser() -> argparse.ArgumentParser:
             "grape",
             "deep_matrix_factorization",
             "vicause",
+            "deci",
+            "deci_gaussian",
+            "deci_spline",
             "min_imputing",
             "mean_imputing",
             "zero_imputing",
             "majority_vote",
             "mice",
             "missforest",
+            "pc",
+            "notears_linear",
+            "notears_mlp",
+            "notears_sob",
+            "grandag",
+            "icalingam",
+            "dowhy",
+            "deci_dowhy",
+            "true_graph_dowhy",
+            "pc_dowhy",
+            "pc_informed_deci",
+            "informed_deci",
         ],
         help=textwrap.dedent(
             """Type of model to train.
@@ -138,12 +152,27 @@ def get_parser() -> argparse.ArgumentParser:
                 The value that replaces NaN can be assigned in missing_fill_val in the training_hyperparams of the model config file. 
                 Does not work with active learning.
             vicause: Simultaneous missing value imputation and causal discovery using neural relational inference.
+            deci: Causal discovery using flow based model while doing approximate inference over the adjacency matrix. Supports estimating treatment effects.
+            deci_gaussian: Causal discovery using flow based model while doing approximate inference over the adjacency matrix. Supports estimating treatment effects. Use Gaussian base distribtion
+            deci_spline: Causal discovery using flow based model while doing approximate inference over the adjacency matrix. Supports estimating treatment effects. Use Spline base distribution
             min_imputing: Impute missing values using the minimum value for the corresponding variable.
             mean_imputing: Impute missing values using the mean observed value for the corresponding variable.
             zero_imputing: Impute missing values using the value 0.
             majority_vote: Impute missing values using the most common observed value for the feature.
             mice: Impute missing values using the iterative method Multiple Imputation by Chained Equations (MICE).
             missforest: Impute missing values using the iterative random forest method MissForest.
+            notears_linear: Linear version of notears algorithm for causal discovery (https://arxiv.org/abs/1803.01422).
+            notears_mlp: Nonlinear version (MLP) of notears algorithm for causal discovery (https://arxiv.org/abs/1909.13189).
+            notears_sob: Nonlinear version (Sobolev) of notears algorithm for causal discovery (https://arxiv.org/abs/1909.13189).
+            grandag: GraNDAG algorithm for causal discovery using MLP as nonlinearities (https://arxiv.org/abs/1906.02226).
+            pc: PC algorithm for causal discovery (https://arxiv.org/abs/math/0510436).
+            icalingam: ICA based causal discovery (https://dl.acm.org/doi/10.5555/1248547.1248619).
+            do_why: Causal inference from predefined causal graph and observational data. Note that a causal graph or causal discovery model save will need to be specified in config file. (https://arxiv.org/abs/2011.04216)
+            deci_dowhy: Causal discovery using DECI. Causal inference using DoWhy.
+            true_graph_dowhy:  Causal inference using DoWhy when the causal graph is set to the ground truth.
+            pc_dowhy:  Causal discovery using PC. Causal inference using DoWhy.
+            pc_informed_deci: Causal discovery using PC CPDAG as a soft prior for DECI. Causal inference using DECI,
+            informed_deci: Causal discovery using the true graph as a soft prior for DECI. Causal inference using DECI,
             """
         ),
     )
@@ -177,6 +206,13 @@ def get_parser() -> argparse.ArgumentParser:
             "rand",
             "cond_sing",
             "sing",
+            "ei",
+            "nm_ei",
+            "b_ei",
+            "k_ei",
+            "bin",
+            "gls",
+            "rand_im",
             "variance",
             "all",
         ],
@@ -186,7 +222,14 @@ def get_parser() -> argparse.ArgumentParser:
                                 eddi_rowwise = same as eddi but with row-wise parallelization for information gain computation
                                 rand = random strategy for information acquisition
                                 cond_sing = conditional single order strategy across the whole test dataset where the next best step condition on existing observation  
-                                sing = single order strategy determinated by first step information gain""",
+                                sing = single order strategy determinated by first step information gain 
+                                ei = expected improvement, 
+                                nm_ei = non myopic ei,
+                                b_ei = batch ei
+                                k_ei = k selection with ei
+                                bin = binoculars algorithm
+                                gls = glasses algorithm 
+                                rand_im = random with imputation""",
     )
     parser.add_argument(
         "--users_to_plot", "-up", default=[0], nargs="+", help="Indices of users to plot info gain bar charts for."

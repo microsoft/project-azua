@@ -4,13 +4,14 @@ from __future__ import annotations
 import logging
 import warnings
 from collections import defaultdict
-from ..utils.io_utils import read_json, save_json
+from distutils.util import strtobool
 from typing import Any, DefaultDict, Dict, Tuple, cast, Iterator, List, Optional, overload, Union
 
-from distutils.util import strtobool
 import numpy as np
 import torch
 from scipy.sparse import csr_matrix, issparse
+
+from ..utils.io_utils import read_json, save_json
 
 
 class Variables:
@@ -497,7 +498,7 @@ class Variables:
         Return a mask of shape (num_groups, num_processed_cols) indicating which column
         corresponds to which group.
         """
-        mask = np.zeros((self.num_query_groups, self.num_processed_cols), dtype=np.bool)
+        mask = np.zeros((self.num_query_groups, self.num_processed_cols), dtype=np.bool_)
         for group_idx, group in enumerate(self.query_group_idxs):
             for var in group:
                 for proc_col in self.processed_cols[var]:

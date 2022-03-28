@@ -124,7 +124,7 @@ class VarianceObjective(EDDIObjective):
             rewards = self._remove_rewards_for_observed_groups(mask, rewards)
 
             if not as_array:
-                rewards = [{idx: float(val) for idx, val in enumerate(row)} for row in rewards]
+                return [{idx: float(val) for idx, val in enumerate(row)} for row in rewards]
         return rewards
 
     def _calc_sum_target_variances(self, data: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:

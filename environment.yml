@@ -8,7 +8,7 @@ dependencies:
   - python==3.8.2
   - tqdm==4.50.2
   # ML packages
-  - numpy==1.19.2
+  - numpy==1.21.0
   - pytorch==1.7.0
   - cudatoolkit=10.2
   - scipy==1.5.2
@@ -18,12 +18,12 @@ dependencies:
   - torchvision>=0.8.0
   - seaborn==0.11.0
   - tensorboard==2.3.0
+  - Flask==1.1.4
+  - jupyter
   # Dev tools (testing, static analysis, styling etc.):
   - pytest==6.1.1
   - pytest-cov==2.10.1
-  # TODO: update mypy to newer version once available. We need this feature https://github.com/python/mypy/issues/6385 
-  # in order not to need to specify __init__.py file in every single directory we want to run mypy for.
-  - mypy==0.790
+  - mypy==0.931
   - gitpython==3.1.11
   - black==19.10b0
   - flake8==3.8.4
@@ -43,3 +43,19 @@ dependencies:
     - dppy==0.3.1
     # DI framework
     - dependency_injector==4.34.2
+    # gcastle for causality baselines
+    # Should be updated to the Huawei codebase once they release new full-pytorch version (#21024)
+    - git+https://github.com/tomsons22/trustworthyAI.git@c2e3535eba28cabf8e1309f55bffc3e4d4d78c00#subdirectory=gcastle
+    # For float32 (bug #20930)
+    # - git+https://github.com/tomsons22/trustworthyAI.git@bf6e050b6c2511d857ac687fe8c01fcf5fe32f02#subdirectory=gcastle
+    # For DoWhy baseline
+    - graphviz==0.17
+    # Use DoWhy from Github to allow for faster integration of new features
+    - git+https://github.com/microsoft/dowhy.git@8b2cf6a
+    - econml==0.12.0
+    - networkx[default]==2.6.3
+    - lingam
+    - igraph==0.9.9
+    # Required by mypy for Library stubs
+    - types-PyYAML
+    - numpyro==0.9.1

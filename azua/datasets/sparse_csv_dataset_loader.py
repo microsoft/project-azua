@@ -1,14 +1,15 @@
 import logging
-import numpy as np
 import os
+import warnings
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix
-from typing import Any, Dict, List, Optional, Tuple, Union
-import warnings
 
-from ..datasets.variables import Variables
 from ..datasets.dataset import SparseDataset
 from ..datasets.dataset_loader import DatasetLoader
+from ..datasets.variables import Variables
 
 logger = logging.getLogger(__name__)
 
@@ -158,19 +159,25 @@ class SparseCSVDatasetLoader(DatasetLoader):
             # can combine these matrices to perform imputation evaluation correctly.
             # Since the CSR matrix created for each split will only contain rows up to the largest row ID in the split,
             # we resize the smaller matrices to include 0s on these truncated rows if necessary..
-            if val_data is not None:
-                if train_rows != val_rows or train_rows != val_rows or val_rows != test_rows:
+            if val_data is not None and val_mask is not None:
+                if train_rows != val_rows or train_rows != test_rows or val_rows != test_rows:
                     num_rows = max(train_data.shape[0], val_data.shape[0], test_data.shape[0])
                     num_cols = len(used_cols)
                     train_data.resize((num_rows, num_cols))
                     val_data.resize((num_rows, num_cols))
                     test_data.resize((num_rows, num_cols))
+                    # resize the masks
+                    train_mask.resize((num_rows, num_cols))
+                    test_mask.resize((num_rows, num_cols))
+                    val_mask.resize((num_rows, num_cols))
             else:
                 if train_rows != test_rows:
                     num_rows = max(train_data.shape[0], test_data.shape[0])
                     num_cols = len(used_cols)
                     train_data.resize((num_rows, num_cols))
                     test_data.resize((num_rows, num_cols))
+                    train_mask.resize((num_rows, num_cols))
+                    test_mask.resize((num_rows, num_cols))
 
             # Remove rows that are not used in train/val/test data: this is necessary if the row IDs are not
             # [0, ..., num_rows-1], since the sparse matrices will be created with as many rows as the largest row ID.
@@ -183,9 +190,9 @@ class SparseCSVDatasetLoader(DatasetLoader):
             train_mask = train_mask[used_rows, :]
             test_data = test_data[used_rows, :]
             test_mask = test_mask[used_rows, :]
-            if val_data is not None:
-                test_data = test_data[used_rows, :]
-                test_mask = test_mask[used_rows, :]
+            if val_data is not None and val_mask is not None:
+                val_data = val_data[used_rows, :]
+                val_mask = val_mask[used_rows, :]
 
         variables_dict = self._load_variables_dict(used_cols)
         variables = Variables.create_from_data_and_dict(train_data.toarray(), train_mask.toarray(), variables_dict)
@@ -251,10 +258,10 @@ class SparseCSVDatasetLoader(DatasetLoader):
         # assuming that this is the most up-to-date entry.
         df.drop_duplicates(subset=["row", "col"], keep="last", inplace=True)
 
-        rows = df["row"].to_numpy(dtype=np.int)
-        cols = df["col"].to_numpy(dtype=np.int)
-        vals = df["val"].to_numpy(dtype=np.float)
-        data = csr_matrix((vals, (rows, cols)), dtype=np.float)
+        rows = df["row"].to_numpy(dtype=np.int_)
+        cols = df["col"].to_numpy(dtype=np.int_)
+        vals = df["val"].to_numpy(dtype=np.float_)
+        data = csr_matrix((vals, (rows, cols)), dtype=np.float_)
         return cls._process_sparse_data(data, used_cols, drop_rows)
 
     @classmethod
@@ -290,7 +297,7 @@ class SparseCSVDatasetLoader(DatasetLoader):
                     vals.append(val)
         n_rows = len(dicts)
         n_cols = max_col + 1
-        data = csr_matrix((vals, (rows, cols)), dtype=np.float, shape=(n_rows, n_cols))
+        data = csr_matrix((vals, (rows, cols)), dtype=np.float_, shape=(n_rows, n_cols))
         data, mask, _, used_rows = cls._process_sparse_data(data, used_cols, drop_rows=False)
         return data, mask, used_rows
 

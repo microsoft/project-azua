@@ -25,7 +25,7 @@ for i, book_file in enumerate(book_files):
         continue
     df = df[~df.Description.isna()]
     if "Language" not in df:
-    df = df[df.Language.isin(["eng", "en-US", "en-GB", np.nan])]
+        df = df[df.Language.isin(["eng", "en-US", "en-GB", np.nan])]
     if "Name" in df:
         assert "name" not in df
         booknames_from_book = np.union1d(booknames_from_book, df.Name.unique())

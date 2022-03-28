@@ -40,9 +40,9 @@ class SKLearnImputer(Model, IModelForImputation):
     def fill_mask(data, mask, fill_value=np.nan):
         # Fill values this way rather than e.g. data * mask + fill_value * ~mask to handle case of sparse mask, where
         # * is matrix multiplication rather than elementwise multiplication.
-        data_masked = np.zeros_like(data)
+        data_masked = np.zeros(data.shape)
         data_masked[mask.nonzero()] = data[mask.nonzero()]
-        data_masked[(~mask).nonzero()] = fill_value
+        data_masked[(mask == 0).nonzero()] = fill_value
         return data_masked
 
     @classmethod

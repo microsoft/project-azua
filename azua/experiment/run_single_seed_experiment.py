@@ -11,6 +11,7 @@ from ..experiment.steps.step_func import load_data, preprocess_configs
 from ..experiment.steps.eval_step import eval_treatment_effects, eval_causal_discovery
 from ..models.models_factory import load_model
 from ..models.imodel import IModelForObjective, IModelForImputation, IModelForCausalInference, IModelForInterventions
+from ..models.deci.deci import DECI
 from ..models.transformer_imputer import TransformerImputer
 import os
 import time
@@ -61,7 +62,7 @@ def run_single_seed_experiment(
             "INFO": logging.INFO,
             "CRITICAL": logging.CRITICAL,
             "WARNING": logging.WARNING,
-            "DEBUG": logging.DEBUG
+            "DEBUG": logging.DEBUG,
         }
         level = level_dict[logger_level]
     logging.basicConfig(level=level, force=True, format=log_format)
@@ -81,9 +82,6 @@ def run_single_seed_experiment(
     assert dataset.variables is not None
 
     # Preprocess configs based on args and dataset
-    # Going forward, we probably want the preprocessing happen inside steps (e.g. in train_step)
-    # TODO: Rethink how we work with tags before moving this logic into steps
-    # TODO: remove data_dir param, and carry it in dataset object instead
     preprocess_configs(model_config, train_hypers, model_type, dataset, data_dir, tiny)
 
     # Loading/training model
@@ -135,7 +133,7 @@ def run_single_seed_experiment(
             impute_train_data=impute_train_data,
         )
 
-    # Evaluate causal discovery (only for vicause at the moment)
+    # Evaluate causal discovery
     if causal_discovery:
         assert isinstance(model, IModelForCausalInference)
         causal_model = cast(IModelForCausalInference, model)
@@ -147,7 +145,8 @@ def run_single_seed_experiment(
             raise ValueError("This model class does not support treatment effect estimation.")
         if not isinstance(dataset, CausalDataset):
             raise ValueError("This dataset type does not support treatment effect estimation.")
-        eval_treatment_effects(logger, dataset, model, metrics_logger, eval_likelihood)
+        preprocess_data_for_treatment = isinstance(model, DECI)
+        eval_treatment_effects(logger, dataset, model, metrics_logger, eval_likelihood, preprocess_data_for_treatment)
 
     # Active learning
     if active_learning is not None:

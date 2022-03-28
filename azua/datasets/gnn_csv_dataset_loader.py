@@ -1,18 +1,19 @@
+import ast
+import logging
+import os
+from typing import Dict, Optional, Tuple, Union, Any, cast, List
+
 import numpy as np
 import pandas as pd
 import torch
-from torch_geometric.data import Data
-import os
+from pandas import DataFrame
+from scipy.sparse.csr import csr_matrix
+from torch import Tensor
 from torch.nn.functional import one_hot
-import ast
-import logging
+from torch_geometric.data import Data
+
 from ..datasets.csv_dataset_loader import CSVDatasetLoader
 from ..datasets.dataset import Dataset, GraphDataset
-from typing import Dict, Optional, Tuple, Union, Any, cast, List
-from scipy.sparse.csr import csr_matrix
-from pandas import DataFrame
-from torch import Tensor
-
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class GNNCSVDatasetLoader(CSVDatasetLoader):
     Load a dataset from a CSV file as graphs for GNN, where each row entry has a form (row_id, col_id, value).
     """
 
-    def split_data_and_load_dataset(
+    def split_data_and_load_dataset(  # type: ignore
         self,
         test_frac: float,
         val_frac: float,
@@ -57,6 +58,7 @@ class GNNCSVDatasetLoader(CSVDatasetLoader):
             dataset: GraphDataset object, holding the data and variable metadata as well as
             the torch_geometric Data object as one of it's attributes.
         """
+        assert isinstance(model_config, Dict), "model_config should be a Dict."
         assert (
             model_config["is_inductive_task"] if split_type == "rows" else not model_config["is_inductive_task"]
         ), "is_inductive_task needs to be True (False) when split_type is 'rows' ('elements')."
@@ -67,7 +69,7 @@ class GNNCSVDatasetLoader(CSVDatasetLoader):
         graph_dataset = dataset.to_graph(graph_data)
         return graph_dataset
 
-    def load_predefined_dataset(
+    def load_predefined_dataset(  # type:ignore
         self,
         max_num_rows: Optional[int] = None,
         negative_sample: bool = False,
@@ -91,10 +93,11 @@ class GNNCSVDatasetLoader(CSVDatasetLoader):
         Returns:
             dataset: GraphDataset object, holding the data and variable metadata.
         """
+        assert isinstance(model_config, Dict), "model_config should be a Dict."
         assert (
             model_config["is_inductive_task"] if split_type == "rows" else not model_config["is_inductive_task"]
         ), "is_inductive_task needs to be True (False) when split_type is 'rows' ('elements')."
-        dataset = super().load_predefined_dataset(max_num_rows, negative_sample, split_type)
+        dataset = super().load_predefined_dataset(max_num_rows, negative_sample)
 
         logger.info("Create graph dataset.")
         graph_data = self._get_graph_data(dataset, model_config)
@@ -120,8 +123,12 @@ class GNNCSVDatasetLoader(CSVDatasetLoader):
         data_split: dict = cast(dict, dataset.data_split)
 
         train_df = self._create_df_with_recalibrated_row_idxs(dataset.train_data_and_mask, data_split["train_idxs"])
-        test_df = self._create_df_with_recalibrated_row_idxs(dataset.test_data_and_mask, data_split["test_idxs"])
-        val_df = self._create_df_with_recalibrated_row_idxs(dataset.val_data_and_mask, data_split["val_idxs"])
+        test_df = self._create_df_with_recalibrated_row_idxs(
+            dataset.test_data_and_mask, data_split["test_idxs"]  # type: ignore
+        )
+        val_df = self._create_df_with_recalibrated_row_idxs(
+            dataset.val_data_and_mask, data_split["val_idxs"]  # type: ignore
+        )
 
         if val_df is None:
             all_df = pd.concat([train_df, test_df], ignore_index=True)
@@ -443,11 +450,11 @@ class GNNCSVDatasetLoader(CSVDatasetLoader):
             Train, test, or val dataframe with recalibrated row indexes if we have the data, else, return None.
         """
         data, _ = data_and_mask
-        data = csr_matrix(data.astype(np.float))
-        if data is None:
+        data_csr = csr_matrix(data.astype(np.float_))
+        if data_csr is None:
             return None
         else:
-            coo = data.tocoo()
+            coo = data_csr.tocoo()
             assert np.array_equal(coo.row, np.sort(coo.row))
             assert idxs == sorted(idxs)
             map_coo_row_to_idxs = {v1: v2 for v1, v2 in zip(np.sort(np.unique(coo.row)), idxs)}
@@ -616,7 +623,7 @@ class GNNCSVDatasetLoader(CSVDatasetLoader):
             assert len(df) == len(df_merged)
 
             edge_meta_df = pd.read_csv(edge_meta_path)
-            edge_meta_df["ts"] = pd.to_datetime(edge_meta_df["DateAnswered"]).values.astype(np.float)
+            edge_meta_df["ts"] = pd.to_datetime(edge_meta_df["DateAnswered"]).values.astype(np.float_)
             ts_min, ts_max = edge_meta_df["ts"].min(), edge_meta_df["ts"].max()
             edge_meta_df["ts"] = (edge_meta_df["ts"] - ts_min) / (ts_max - ts_min)
 

@@ -58,9 +58,11 @@ class ImputationStatistics:
         value_range = range(int(variable.lower), int(variable.upper + 1))
         sample_count, N_data = feature.shape
         stats["n_class"] = len(value_range)
-        processed_feature = label_binarize(
-            feature.reshape((-1,)), classes=value_range, neg_label=0, pos_label=1
-        ).reshape((sample_count, N_data, stats["n_class"]))
+        # If a feature is categorical, some methods such as mean imputing treating this as continous. Thus convert it to int first.
+        int_feature = np.rint(feature.reshape((-1)))
+        processed_feature = label_binarize(int_feature, classes=value_range, neg_label=0, pos_label=1).reshape(
+            (sample_count, N_data, stats["n_class"])
+        )
 
         # now compute statistics! assume processed_feature has shape (sample_count, N_data, n_class)
         stats["marginal_prob"] = np.mean(processed_feature, axis=0)

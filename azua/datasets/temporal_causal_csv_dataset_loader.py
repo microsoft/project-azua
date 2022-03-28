@@ -1,11 +1,11 @@
-import os
-import numpy as np
-
 import logging
-from ..datasets.causal_csv_dataset_loader import CausalCSVDatasetLoader
-from ..datasets.dataset import TemporalDataset
+import os
 from typing import Optional, Tuple, List, Dict
 
+import numpy as np
+
+from ..datasets.causal_csv_dataset_loader import CausalCSVDatasetLoader
+from ..datasets.dataset import TemporalDataset
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +18,10 @@ class TemporalCausalCSVDatasetLoader(CausalCSVDatasetLoader):
     from CSV files contained within the same data directory.
     """
 
-    _intervention_data_file = "interventions.csv"
     _adjacency_data_file = "adj_matrix.npy"
     _transition_matrix_file = "transition_matrix.npy"
 
-    def split_data_and_load_dataset(
+    def split_data_and_load_dataset(  # type:ignore
         self,
         test_frac: float,
         val_frac: float,
@@ -44,7 +43,7 @@ class TemporalCausalCSVDatasetLoader(CausalCSVDatasetLoader):
 
         Returns:
             temporal_dataset: TemporalDataset object, holding the data and variable metadata as well as
-            the transition matrix as a np.ndarray, the adjacency matrix as a np.ndarray and a list of IntervetionData
+            the transition matrix as a np.ndarray, the adjacency matrix as a np.ndarray and a list of InterventionData
             objects, each containing an intervention vector and samples. 
         """
 
@@ -55,9 +54,12 @@ class TemporalCausalCSVDatasetLoader(CausalCSVDatasetLoader):
         logger.info("Create temporal dataset.")
 
         adjacency_data = self._get_adjacency_data()
-        intervention_data = self._get_intervention_data(max_num_rows)
+        intervention_data = self._load_data_from_intervention_files(max_num_rows)
+        counterfactual_data = self._load_data_from_intervention_files(max_num_rows, True)
         transition_matrix = self._get_transition_matrix()
-        temporal_dataset = dataset.to_temporal(adjacency_data, intervention_data, transition_matrix)
+        temporal_dataset = dataset.to_temporal(
+            adjacency_data, intervention_data, transition_matrix, counterfactual_data
+        )
         return temporal_dataset
 
     def load_predefined_dataset(
@@ -74,7 +76,7 @@ class TemporalCausalCSVDatasetLoader(CausalCSVDatasetLoader):
 
         Returns:
             temporal_dataset: TemporalDataset object, holding the data and variable metadata as well as
-            the transition matrix as a np.ndarray, the adjacency matrix as a np.ndarray and a list of IntervetionData
+            the transition matrix as a np.ndarray, the adjacency matrix as a np.ndarray and a list of InterventionData
             objects, each containing an intervention vector and samples. 
         """
         dataset = super(CausalCSVDatasetLoader, self).load_predefined_dataset(max_num_rows, negative_sample)
@@ -82,9 +84,12 @@ class TemporalCausalCSVDatasetLoader(CausalCSVDatasetLoader):
         logger.info("Create temporal dataset.")
 
         adjacency_data = self._get_adjacency_data()
-        intervention_data = self._get_intervention_data(max_num_rows)
+        intervention_data = self._load_data_from_intervention_files(max_num_rows)
+        counterfactual_data = self._load_data_from_intervention_files(max_num_rows, True)
         transition_matrix = self._get_transition_matrix()
-        temporal_dataset = dataset.to_temporal(adjacency_data, intervention_data, transition_matrix)
+        temporal_dataset = dataset.to_temporal(
+            adjacency_data, intervention_data, transition_matrix, counterfactual_data
+        )
         return temporal_dataset
 
     @classmethod

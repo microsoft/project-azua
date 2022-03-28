@@ -1,10 +1,23 @@
 import os
+import json
 import numpy as np
 
 import logging
 from ..datasets.csv_dataset_loader import CSVDatasetLoader
-from ..datasets.dataset import CausalDataset, IntervetionData
-from typing import Optional, Tuple, Union
+from ..datasets.dataset import CausalDataset, InterventionData
+from typing import List, Optional, Tuple, Union, TypedDict
+
+
+class OptionalInterventionDataDict(TypedDict, total=False):
+    reference: np.ndarray
+    effect_idx: np.ndarray
+    reference_samples: np.ndarray
+
+
+class InterventionDataDict(OptionalInterventionDataDict):
+    conditioning: np.ndarray
+    intervention: np.ndarray
+    intervention_samples: np.ndarray
 
 
 logger = logging.getLogger(__name__)
@@ -18,7 +31,8 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
     from CSV files contained within the same data directory.
     """
 
-    _intervention_data_file = "interventions.csv"
+    _intervention_data_basefilename = "interventions"
+    _counterfactual_data_basefilename = "counterfactuals"
     _adjacency_data_file = "adj_matrix.csv"
 
     def split_data_and_load_dataset(
@@ -47,7 +61,7 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
 
         Returns:
             causal_dataset: CausalDataset object, holding the data and variable metadata as well as
-            the adjacency matrix as a np.ndarray and a list of IntervetionData objects, each containing an intervention
+            the adjacency matrix as a np.ndarray and a list of InterventionData objects, each containing an intervention
             vector and samples. 
         """
 
@@ -55,9 +69,10 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
 
         logger.info("Create causal dataset.")
 
-        adjacency_data = self._get_adjacency_data()
-        intervention_data = self._get_intervention_data(max_num_rows)
-        causal_dataset = dataset.to_causal(adjacency_data, intervention_data)
+        adjacency_data, known_subgraph_mask = self._get_adjacency_data()
+        intervention_data = self._load_data_from_intervention_files(max_num_rows)
+        counterfactual_data = self._load_data_from_intervention_files(max_num_rows, True)
+        causal_dataset = dataset.to_causal(adjacency_data, known_subgraph_mask, intervention_data, counterfactual_data)
         return causal_dataset
 
     def load_predefined_dataset(
@@ -74,16 +89,17 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
 
         Returns:
             causal_dataset: CausalDataset object, holding the data and variable metadata as well as
-            the adjacency matrix as a np.ndarray and a list of IntervetionData objects, each containing an intervention
+            the adjacency matrix as a np.ndarray and a list of InterventionData objects, each containing an intervention
             vector and samples. 
         """
         dataset = super().load_predefined_dataset(max_num_rows, negative_sample)
 
         logger.info("Create causal dataset.")
 
-        adjacency_data = self._get_adjacency_data()
-        intervention_data = self._get_intervention_data(max_num_rows)
-        causal_dataset = dataset.to_causal(adjacency_data, intervention_data)
+        adjacency_data, known_subgraph_mask = self._get_adjacency_data()
+        intervention_data = self._load_data_from_intervention_files(max_num_rows)
+        counterfactual_data = self._load_data_from_intervention_files(max_num_rows, True)
+        causal_dataset = dataset.to_causal(adjacency_data, known_subgraph_mask, intervention_data, counterfactual_data)
         return causal_dataset
 
     def _get_adjacency_data(self):
@@ -95,46 +111,154 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
         if not adjacency_file_exists:
             logger.info("DAG adjacency matrix not found.")
             adjacency_data = None
+            mask = None
         else:
             logger.info("DAG adjacency matrix found.")
             adjacency_data, mask = self.read_csv_from_file(adjacency_data_path)
-            # check there are no missing values in the adjacency matrix
-            assert np.all(mask == 1)
 
-        return adjacency_data
+        return adjacency_data, mask
 
-    def _get_intervention_data(self, max_num_rows):
+    def _load_data_from_intervention_files(
+        self, max_num_rows: Optional[int], is_counterfactual: bool = False
+    ) -> Optional[List[InterventionData]]:
+        """Loads data from files following the InterventionData format.
+        
+        This is used for loading interventional data as well as counterfactual data.
 
-        intervention_data_path = os.path.join(self._dataset_dir, self._intervention_data_file)
-        intervention_file_exists = all([os.path.exists(intervention_data_path)])
+        Args:
+            max_num_rows (Optional[int]): Maximum number of rows to include when reading data files.
+            is_counterfactual (bool): Whether to load counterfactual data.
 
-        if not intervention_file_exists:
+        Returns:
+            Optional[List[InterventionData]]: List of InterventionData objects.
+        """
+
+        intervention_data_path = os.path.join(
+            self._dataset_dir,
+            self._counterfactual_data_basefilename if is_counterfactual else self._intervention_data_basefilename,
+        )
+
+        if os.path.exists(intervention_data_path + ".csv"):
+            logger.info("Intervention data csv found.")
+            raw_intervention_data, mask = self.read_csv_from_file(
+                intervention_data_path + ".csv", max_num_rows=max_num_rows
+            )
+            intervention_data = self._parse_csv_intervention_data(
+                raw_intervention_data, mask, is_counterfactual=is_counterfactual
+            )
+        elif os.path.exists(intervention_data_path + ".npy"):
+            logger.info("Intervention data npy found.")
+
+            raw_intervention_data = np.load(intervention_data_path + ".npy", allow_pickle=True)
+
+            intervention_data = self._parse_intervention_dict_list(
+                raw_intervention_data, is_counterfactual=is_counterfactual
+            )
+        elif os.path.exists(intervention_data_path + ".json"):
+            logger.info("Intervention data json found.")
+
+            with open(intervention_data_path + ".json", "r") as f:
+                raw_intervention_data = json.load(f)
+
+            intervention_data = self._parse_intervention_dict_list(
+                raw_intervention_data, is_counterfactual=is_counterfactual
+            )
+        else:
             logger.info("Intervention data not found.")
             intervention_data = None
-        else:
-            logger.info("Intervention data found.")
-            raw_intervention_data, mask = self.read_csv_from_file(intervention_data_path, max_num_rows=max_num_rows)
-            intervention_data = self._process_intervention_data(raw_intervention_data, mask)
 
         return intervention_data
 
     @classmethod
-    def _process_intervention_data(cls, raw_intervention_data, mask):
+    def _parse_intervention_dict_list(
+        cls, raw_intervention_data, is_counterfactual: bool = False
+    ) -> List[InterventionData]:
+        """ Process list of dicts containing intervention data.
+        
+        Args:
+            raw_intervention_data: List of dicts containing intervention data. This is passed as a np.ndarray.
+            is_counterfactual (bool): Whether the data is counterfactual or not.
+            
+        Returns:
+            intervention_data: List of InterventionData objects.
+        """
+
+        intervention_data = []
+        # The interventional data is saved as follows:
+        # [
+        #     {
+        #         "conditioning": np.array[mixed],
+        #         "intervention": np.array[mixed],
+        #         "reference": Optional[np.array[mixed]],
+        #         "effect_mask": Optional[np.array[bool]],
+        #         "intervention_samples": np.array[mixed],
+        #         "reference_samples": Optional[np.array[mixed]],
+        #     },
+        #     ...
+        # ]
+
+        for intervention_dict in raw_intervention_data:
+            conditioning_values, conditioning_mask = cls._process_data(intervention_dict["conditioning"])
+            conditioning_idxs = np.where(conditioning_mask == 1)[0]
+
+            intervention_values, intervention_mask = cls._process_data(intervention_dict["intervention"])
+            intervention_samples = intervention_dict["intervention_samples"]
+            intervention_idxs = np.where(intervention_mask == 1)[0]
+
+            if is_counterfactual:
+                assert (
+                    conditioning_values.shape[0] == intervention_samples.shape[0]
+                ), "Counterfactual data expects the conditioning to be of equivalent shape as the interventional data."
+                assert (conditioning_mask == 1).all(), "Counterfactual data expects the conditioning to be full."
+
+            # Optional fields:
+            reference_values = None
+            reference_samples = None
+            effect_mask = intervention_dict.get("effect_mask", None)
+            effect_idxs = np.where(effect_mask == 1)[0]
+
+            if "reference" in intervention_dict:
+                assert isinstance(intervention_dict["reference"], np.ndarray)  # Mypy hint.
+                reference_values, reference_mask = cls._process_data(intervention_dict["reference"])
+                reference_samples = intervention_dict["reference_samples"]
+                assert np.all(reference_mask == intervention_mask), "Intervention and reference indices must match."
+                assert isinstance(reference_samples, np.ndarray), "Reference samples must be provided."
+
+            cur_intervention_data = InterventionData(
+                conditioning_idxs=conditioning_idxs,
+                conditioning_values=conditioning_values,
+                effect_idxs=effect_idxs,
+                intervention_idxs=intervention_idxs,
+                intervention_values=intervention_values,
+                intervention_reference=reference_values,
+                test_data=intervention_samples,
+                reference_data=reference_samples,
+            )
+
+            intervention_data.append(cur_intervention_data)
+
+        return intervention_data
+
+    @classmethod
+    def _parse_csv_intervention_data(
+        cls, raw_intervention_data: np.ndarray, mask: np.ndarray, is_counterfactual: bool = False
+    ) -> List[InterventionData]:
         """
         TODO: re-structure this method into smaller sub-methods to increase readability
 
            Parse the raw data from the interventions.csv file, separating the intervened variables, their intervened values and samples from the intervened distribution.
            Also, if they exist, retrieves indinces of effect variables, reference variables, data generated with reference interventions, conditioning indices and conditioning variables.
-           If they do not exist, those fields of the IntervetionData object are populated with None.
+           If they do not exist, those fields of the InterventionData object are populated with None.
            Expects format of interventions.csv to be 5xN_vars columns. The order is [conditioning_cols, intervention_cols, reference_cols, effect_mask_cols, data_cols].
            It is infered automatically which rows correspond to the same intervention.
 
             Args:
                 raw_intervention_data: np.ndarray read directly from interventions.csv
                 mask: Corresponding mask, where observed values are 1 and np.nan values (representing non-intervened variables) are 0.
+                is_counterfactual: Whether the data is counterfactual or not.
 
             Returns:
-                causal_dataset: List of instances of IntervetionData, one per each intervention.
+                causal_dataset: List of instances of InterventionData, one per each intervention.
                 
             """
 
@@ -166,6 +290,11 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
         conditioning_idxs = np.where(conditioning_mask_cols[0, :] == 1)[0]
         conditioning_values = conditioning_cols[0, conditioning_idxs]
 
+        if is_counterfactual:
+            assert np.all(conditioning_mask_cols[0, :] == 1), "Counterfactual data expects the conditioning to be full."
+            cf_conditioning_idxs = [conditioning_idxs]
+            cf_conditioning_values = [conditioning_values]
+
         # identify intervention variable indices and their values
         intervention_idxs = np.where(intervention_mask_cols[0, :] == 1)[0]
         intervention_values = intervention_cols[0, intervention_idxs]
@@ -192,9 +321,15 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
 
             next_effect_idxs = np.where(effect_mask_cols[n_row, :] == 1)[0]
 
-            intervention_change = (
-                next_intervention_idxs != intervention_idxs or next_intervention_values != intervention_values
-            )
+            intervention_change = list(next_intervention_idxs) != list(intervention_idxs) or list(
+                next_intervention_values
+            ) != list(intervention_values)
+            # check whether we're handling counterfactual data or not
+            if not is_counterfactual:
+                intervention_change = intervention_change or (
+                    list(next_conditioning_idxs) != list(conditioning_idxs)
+                    or list(next_conditioning_values) != list(conditioning_values)
+                )
 
             ref_start = len(reference_idxs) == 0 and len(next_reference_idxs) > 0
 
@@ -212,7 +347,6 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
 
             # decide data for a given intervention has finished based on where the intervened indices or values change
             if intervention_change:
-
                 # Ensure that we dont intervene, condition or measure effect on same variable
                 assert not (set(intervention_idxs) & set(conditioning_idxs) & set(effect_idxs))
                 # Ensure that reference incides are empty or match the treatment indices
@@ -227,6 +361,16 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
                     reference_data = None
                     reference_values = None
 
+                if is_counterfactual:
+                    conditioning_idxs = np.stack(cf_conditioning_idxs)
+                    conditioning_values = np.stack(cf_conditioning_values)
+
+                    assert np.all(
+                        conditioning_mask_cols[n_row, :] == 1
+                    ), "Counterfactual data expects the conditioning to be full."
+                    cf_conditioning_idxs = [next_conditioning_idxs]
+                    cf_conditioning_values = [next_conditioning_values]
+
                 if len(effect_idxs) == 0:
                     effect_idxs = None
                 if len(conditioning_idxs) == 0:
@@ -235,7 +379,7 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
                     conditioning_idxs = None
 
                 intervention_data.append(
-                    IntervetionData(
+                    InterventionData(
                         conditioning_idxs=conditioning_idxs,
                         conditioning_values=conditioning_values,
                         effect_idxs=effect_idxs,
@@ -260,6 +404,13 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
                 reference_idxs = next_reference_idxs
                 reference_values = next_reference_values
 
+            elif is_counterfactual:
+                assert np.all(
+                    conditioning_mask_cols[n_row, :] == 1
+                ), "Counterfactual data expects the conditioning to be full."
+                cf_conditioning_idxs += [next_conditioning_idxs]
+                cf_conditioning_values += [next_conditioning_values]
+
         # Process final intervention
         if has_ref:
             reference_data = sample_cols[intervention_end_row:]
@@ -267,6 +418,10 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
             intervention_end_row = n_row + 1
             reference_data = None
             reference_values = None
+
+        if is_counterfactual:
+            conditioning_idxs = np.stack(cf_conditioning_idxs)
+            conditioning_values = np.stack(cf_conditioning_values)
 
         if len(effect_idxs) == 0:
             effect_idxs = None
@@ -276,7 +431,7 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
             conditioning_idxs = None
 
         intervention_data.append(
-            IntervetionData(
+            InterventionData(
                 conditioning_idxs=conditioning_idxs,
                 conditioning_values=conditioning_values,
                 effect_idxs=effect_idxs,

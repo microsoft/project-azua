@@ -37,16 +37,16 @@ class SINGObjective(EDDIBaseObjective):
     def get_next_questions(self, _, data_mask: np.ndarray, obs_mask: np.ndarray, question_count=1, as_array=False):  # type: ignore[override]
         # TODO: this can probably be optimised.
 
-        next_question_idxs = []
-        for data_mask_row, obs_mask_row in zip(data_mask, obs_mask):
-            observable_groups = self._model.variables.get_observable_groups(data_mask_row, obs_mask_row)
-            info_gain_list_copy = self._info_gain_idxs_sorted.copy()
-            next_qs: List[int] = []
-            while len(next_qs) < question_count and info_gain_list_copy:
-                next_q_id = info_gain_list_copy.pop(0)
-                if next_q_id in observable_groups:
-                    next_qs.append(next_q_id)
-            next_question_idxs.append(next_qs)
+        data_mask_row = data_mask[0, :]
+        obs_mask_row = obs_mask[0, :]
+        observable_groups = self._model.variables.get_observable_groups(np.ones_like(data_mask_row), obs_mask_row)
+        info_gain_list_copy = self._info_gain_idxs_sorted.copy()
+        next_qs: List[int] = []
+        while len(next_qs) < question_count and info_gain_list_copy:
+            next_q_id = info_gain_list_copy.pop(0)
+            if next_q_id in observable_groups:
+                next_qs.append(next_q_id)
+        next_question_idxs = [next_qs] * data_mask.shape[0]
 
         if as_array:
             rewards = self._info_array

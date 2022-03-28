@@ -1,18 +1,19 @@
-from ..datasets.sentence_transformer_model import SentenceTransformerModel
-from ..datasets.itext_embedding_model import ITextEmbeddingModel
 import logging
 import warnings
-from typing import Tuple, List, overload, Union, Optional
+from typing import Tuple, List, overload, Union, Optional, Iterable
 
 import numpy as np
-from sklearn.preprocessing import OneHotEncoder
+import torch
 from scipy import sparse
 from scipy.sparse import issparse, csr_matrix
+from sklearn.preprocessing import OneHotEncoder
 from tqdm import tqdm
-import torch
 
+from ..datasets.dataset import Dataset, SparseDataset, CausalDataset
+from ..datasets.intervention_data import InterventionData
+from ..datasets.itext_embedding_model import ITextEmbeddingModel
+from ..datasets.sentence_transformer_model import SentenceTransformerModel
 from ..datasets.variables import Variables
-from ..datasets.dataset import Dataset, SparseDataset
 
 EPSILON = 1e-5
 logger = logging.getLogger(__name__)
@@ -193,7 +194,42 @@ class DataProcessor:
         proc_extra_masks = tuple(self.process_mask(mask) for mask in extra_masks)
         return (proc_data, proc_data_mask, *proc_extra_masks)
 
-    def process_dataset(self, dataset: Union[Dataset, SparseDataset]) -> Union[Dataset, SparseDataset]:
+    def process_intervention_data(
+        self, intervention_data: Union[InterventionData, Iterable[InterventionData]]
+    ) -> List[InterventionData]:
+        """Preprocesses data in the InterventionData format and returns a list of processed InterventionData objects.
+        
+        
+
+        Args:
+            intervention_data (Union[InterventionData, Iterable[InterventionData]]): InterventionData object or list of
+                InterventionData objects to be processed.
+
+        Returns:
+            List[InterventionData]: List of processed InterventionData objects.
+        """
+        if isinstance(intervention_data, InterventionData):
+            intervention_data = [intervention_data]
+
+        proc_intervention = [
+            InterventionData(
+                i.intervention_idxs,
+                self.process_data_subset_by_group(i.intervention_values, i.intervention_idxs),
+                self.process_data(i.test_data),
+                i.conditioning_idxs,
+                self.process_data_subset_by_group(i.conditioning_values, i.conditioning_idxs),
+                i.effect_idxs,
+                self.process_data_subset_by_group(i.intervention_reference, i.intervention_idxs),
+                self.process_data(i.reference_data) if i.reference_data is not None else None,
+            )
+            for i in intervention_data
+        ]
+
+        return proc_intervention
+
+    def process_dataset(
+        self, dataset: Union[Dataset, SparseDataset, CausalDataset]
+    ) -> Union[Dataset, SparseDataset, CausalDataset]:
         train_data, train_mask = self.process_data_and_masks(*dataset.train_data_and_mask)
         val_data, _ = dataset.val_data_and_mask
         if val_data is not None:
@@ -205,9 +241,37 @@ class DataProcessor:
             test_data, test_mask = self.process_data_and_masks(*dataset.test_data_and_mask)
         else:
             test_data, test_mask = None, None
-        return type(dataset)(
-            train_data, train_mask, val_data, val_mask, test_data, test_mask, variables=dataset.variables
-        )
+        if isinstance(dataset, CausalDataset):
+            # process intervention data
+            if dataset._intervention_data is not None:
+                proc_intervention = self.process_intervention_data(dataset._intervention_data)
+            else:
+                proc_intervention = None
+
+            # process counterfactual data
+            if dataset._counterfactual_data is not None:
+                proc_counterfactual = self.process_intervention_data(dataset._counterfactual_data)
+            else:
+                proc_counterfactual = None
+
+            return type(dataset)(
+                train_data,
+                train_mask,
+                dataset._adjacency_data,
+                dataset._subgraph_data,
+                proc_intervention,
+                proc_counterfactual,
+                val_data,
+                val_mask,
+                test_data,
+                test_mask,
+                variables=dataset.variables,
+                data_split=dataset.data_split,
+            )
+        else:
+            return type(dataset)(
+                train_data, train_mask, val_data, val_mask, test_data, test_mask, variables=dataset.variables
+            )
 
     def check_mask(self, mask: np.ndarray) -> None:
         """
@@ -274,8 +338,9 @@ class DataProcessor:
             upper: Array of column upper bounds with shape (num_features,)
             epsilon: How close to the specified range we require values to be
         """
-        lower_diff = data - lower
-        higher_diff = data - upper
+        # type annotation to avoid mypy error
+        lower_diff: np.ndarray = data - lower
+        higher_diff: np.ndarray = data - upper
         too_low_cols = np.any(lower_diff * mask < -1 * epsilon, axis=0)
         too_high_cols = np.any(higher_diff * mask > epsilon, axis=0)
 
@@ -306,8 +371,8 @@ class DataProcessor:
             upper: Array of column upper bounds with shape (num_features,)
             epsilon: How close to the specified range we require values to be
         """
-        lower_diff = data - lower
-        higher_diff = data - upper
+        lower_diff: np.ndarray = data - lower
+        higher_diff: np.ndarray = data - upper
         too_low_cols = np.any(lower_diff * mask < -1 * epsilon, axis=0)
         too_high_cols = np.any(higher_diff * mask > epsilon, axis=0)
 
@@ -325,7 +390,7 @@ class DataProcessor:
             raise ValueError(f"Data too high for discrete variables {np.where(too_high_cols)[0]}")
 
         # Check all unmasked values are integer-valued.
-        observed_data = data * mask
+        observed_data: np.ndarray = data * mask
         is_integer = np.floor_divide(observed_data, 1) == observed_data
         assert np.all(is_integer)
 
@@ -388,6 +453,52 @@ class DataProcessor:
             processed_data[:, self._txt_proc_cols] = self._text_embedder.encode(data[:, self._txt_unproc_cols])
 
         return processed_data
+
+    def process_data_subset_by_group(
+        self, data: Optional[np.ndarray], idxs: Optional[np.ndarray]
+    ) -> Optional[np.ndarray]:
+        """
+        Args:
+            data: Array of shape (num_rows, num_unprocessed_cols_subset) or (num_unprocessed_cols_subset)
+                Data should be ordered by group, and then by variables within that group in the same
+                order as the main dataset.
+            idxs: Array indicating the ordered indices of the groups represented in the data.
+        Returns:
+            processed_data: Array of shape (num_rows, num_processed_cols_subset) or (num_processed_cols_subset))
+        """
+        # Add statement idxs is None, to avoid mypy error: None type has no __iter__. I assume if data is None or idxs is None, just return None.
+        if data is None or idxs is None:  # Helpful when calling from `process_dataset`
+            return None
+
+        if len(data.shape) == 1:
+            num_rows = 1
+        else:
+            num_rows, _ = data.shape
+        pseudodata = np.zeros((num_rows, self._variables.num_processed_cols))
+
+        start = 0
+        for i in idxs:
+            for j in self._variables.query_group_idxs[i]:
+                unproc_dim = self._variables[j].unprocessed_dim
+                pseudodata[:, self._variables.unprocessed_cols[j]] = data[..., start : (start + unproc_dim)]
+                start += unproc_dim
+
+        processed_pseudodata = self.process_data(pseudodata)
+
+        output_num_cols = self._variables.group_mask[idxs, :].sum()
+        return_data = np.full((num_rows, output_num_cols), fill_value=np.nan)
+
+        start = 0
+        for i in idxs:
+            for j in self._variables.query_group_idxs[i]:
+                proc_dim = self._variables[j].processed_dim
+                return_data[:, start : (start + proc_dim)] = processed_pseudodata[:, self._variables.processed_cols[j]]
+                start += proc_dim
+
+        if len(data.shape) == 1:
+            return_data = return_data.squeeze(0)
+
+        return return_data
 
     @overload
     def process_mask(self, mask: np.ndarray) -> np.ndarray:

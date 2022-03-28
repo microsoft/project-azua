@@ -229,3 +229,12 @@ class IModelForInterventions(IModel):
         Evaluate (optionally conditional) average treatment effect given the learnt causal model.
         """
         raise NotImplementedError
+
+
+class IModelForCounterfactuals(IModel):
+    @abstractmethod
+    def ite(self):
+        """
+        Calculate the individual treatment effect on interventions on observations X.
+        """
+        raise NotImplementedError

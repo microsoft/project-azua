@@ -1,12 +1,12 @@
 import csv
 import logging
 import os
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, List, Tuple, Optional, Union
 
 import numpy as np
 import seaborn as sn
 import matplotlib.pyplot as plt
-from scipy.sparse import csr_matrix, issparse
+from scipy.sparse import csr_matrix, issparse, spmatrix
 from sklearn.manifold import TSNE
 from torch.utils.data import DataLoader
 import torch
@@ -207,7 +207,7 @@ def compute_target_metrics(imputed_values, ground_truth, variables) -> Dict[str,
 
 
 def get_metric(
-    variables: Variables, imputed_values: np.ndarray, ground_truth: np.ndarray, target_mask: np.ndarray, idxs: List[int]
+    variables: Variables, imputed_values: np.ndarray, ground_truth: np.ndarray, target_mask: Union[np.ndarray, csr_matrix] , idxs: List[int]
 ) -> Dict[str, float]:
     """
     Get the value of a comparative metric for the given variables.
@@ -234,7 +234,7 @@ def get_metric(
 
     # if not isinstance(idxs, list):
     #     idxs = [idxs]
-    if issparse(target_mask):
+    if isinstance(target_mask, spmatrix):
         target_mask = target_mask.tocsc()
 
     # TODO: doing this here means variables won't line up in any of below. Better to pass refs to all
@@ -346,7 +346,7 @@ def get_rmse(imputed_values, ground_truth, target_mask, variables: Variables, no
         )
 
         # Calculate squared errors (ignoring text variables).
-        sq_errs_batch = np.zeros_like(ground_truth_batch, dtype=np.float)
+        sq_errs_batch = np.zeros_like(ground_truth_batch, dtype=float)
         sq_errs_batch[:, non_text_indices] = (
             ground_truth_batch[:, non_text_indices] - imputed_values_batch[:, non_text_indices]
         ) ** 2  # Shape (batch_size, num_features)

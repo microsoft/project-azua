@@ -1,11 +1,14 @@
-import numpy as np
-import os
-import torch
-from torch.utils.data.dataset import TensorDataset
-from torch.utils.data import DataLoader
 import json
-from ..utils.io_utils import read_json, read_pickle, get_nth_parent_dir
+import os
+from typing import Tuple
+
+import numpy as np
 import pandas as pd
+import torch
+from torch.utils.data import DataLoader
+from torch.utils.data.dataset import TensorDataset
+
+from ..utils.io_utils import read_json, read_pickle, get_nth_parent_dir
 
 
 def load_particle_data(path, batch_size=1, suffix=""):
@@ -200,18 +203,25 @@ def edge_prediction_metrics_path(gt_path, pred_path):
     return edge_prediction_metrics(adj_matrix_true, adj_matrix_predicted)
 
 
-def edge_prediction_metrics(adj_matrix_true, adj_matrix_predicted):
+def edge_prediction_metrics(adj_matrix_true, adj_matrix_predicted, adj_matrix_mask=None):
     """
     Computes the edge predicition metrics when the ground truth DAG (or CPDAG) is adj_matrix_true and the predicted one
     is adj_matrix_predicted. Both are numpy arrays.
+    adj_matrix_mask is the mask matrix for adj_matrices, that indicates which subgraph is partially known in the ground
+    truth. 0 indicates the edge is unknwon, and 1 indicates that the edge is known.
     """
+    if adj_matrix_mask is None:
+        adj_matrix_mask = np.ones_like(adj_matrix_true)
+
     assert ((adj_matrix_true == 0) | (adj_matrix_true == 1)).all()
     assert ((adj_matrix_predicted == 0) | (adj_matrix_predicted == 1)).all()
     results = {}
 
     # Computing adjacency precision/recall
-    v_true = is_there_adjacency(adj_matrix_true)
-    v_predicted = is_there_adjacency(adj_matrix_predicted)
+    v_mask = is_there_adjacency(adj_matrix_mask)
+    # v_mask is true only if we know about at least one direction of the edge
+    v_true = is_there_adjacency(adj_matrix_true) & v_mask
+    v_predicted = is_there_adjacency(adj_matrix_predicted) & v_mask
     recall = (v_true & v_predicted).sum() / (v_true.sum())
     precision = (v_true & v_predicted).sum() / (v_predicted.sum()) if v_predicted.sum() != 0 else 0.0
     fscore = 2 * recall * precision / (precision + recall) if (recall + precision) != 0 else 0.0
@@ -220,8 +230,9 @@ def edge_prediction_metrics(adj_matrix_true, adj_matrix_predicted):
     results["adjacency_fscore"] = fscore
 
     # Computing orientation precision/recall
-    v_true = get_adjacency_type(adj_matrix_true)
-    v_predicted = get_adjacency_type(adj_matrix_predicted)
+    v_mask = is_there_adjacency(adj_matrix_mask)
+    v_true = get_adjacency_type(adj_matrix_true) * v_mask
+    v_predicted = get_adjacency_type(adj_matrix_predicted) * v_mask
     recall = ((v_true == v_predicted) & (v_true != 0)).sum() / (v_true != 0).sum()
     precision = (
         ((v_true == v_predicted) & (v_predicted != 0)).sum() / (v_predicted != 0).sum()
@@ -234,8 +245,10 @@ def edge_prediction_metrics(adj_matrix_true, adj_matrix_predicted):
     results["orientation_fscore"] = fscore
 
     # Computing causal accuracy (as in https://github.com/TURuibo/Neuropathic-Pain-Diagnosis-Simulator/blob/master/source/CauAcc.py)
-    v_true = is_there_edge(adj_matrix_true)
-    v_predicted = is_there_edge(adj_matrix_predicted)
+    v_mask = is_there_edge(adj_matrix_mask)
+    # v_mask is true only if we know about the edge
+    v_true = is_there_edge(adj_matrix_true) & v_mask
+    v_predicted = is_there_edge(adj_matrix_predicted) & v_mask
     causal_acc = (v_true & v_predicted).sum() / v_true.sum()
     results["causal_accuracy"] = causal_acc
 
@@ -245,7 +258,9 @@ def edge_prediction_metrics(adj_matrix_true, adj_matrix_predicted):
     return results
 
 
-def edge_prediction_metrics_multisample(adj_matrix_true, adj_matrices_predicted, compute_mean=True):
+def edge_prediction_metrics_multisample(
+    adj_matrix_true, adj_matrices_predicted, adj_matrix_mask=None, compute_mean=True
+):
     """
     Computes the edge predicition metrics when the ground truth DAG (or CPDAG) is adj_matrix_true and many predicted
     adjacencies are sampled from the distribution. Both are numpy arrays, adj_matrix_true has shape (n, n) and
@@ -254,7 +269,7 @@ def edge_prediction_metrics_multisample(adj_matrix_true, adj_matrices_predicted,
     results = {}
     for i in range(adj_matrices_predicted.shape[0]):
         adj_matrix_predicted = adj_matrices_predicted[i, :, :]  # (n, n)
-        results_local = edge_prediction_metrics(adj_matrix_true, adj_matrix_predicted)
+        results_local = edge_prediction_metrics(adj_matrix_true, adj_matrix_predicted, adj_matrix_mask=adj_matrix_mask)
         for k in results_local:
             if k not in results:
                 results[k] = []
@@ -534,3 +549,65 @@ def get_intersection_and_union(folder, threshold=0.35):
     os.makedirs(save_folder["union"], exist_ok=True)
     np.savetxt(os.path.join(save_folder["intersection"], "adj_matrix.csv"), intersection, delimiter=",")
     np.savetxt(os.path.join(save_folder["union"], "adj_matrix.csv"), union, delimiter=",")
+
+
+def convert_temporal_adj_matrix_to_static(
+    adj_matrix: np.ndarray, adj_matrix_2: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
+    """ This method converts two temporal adjacency matrices into large static graphs with compatible shapes for causual discovery evaluation.
+    E.g. adj_matrix: [lag1,from,to] and adj_matrix2: [lag2,from,to] and lag1>lag2.
+    They will be converted to large static graphs with shape [lag1*from,lag1*to], where we append 0 submatrix to adj_matrix2.
+
+    Args:
+        adj_matrix (np.ndarray): Adjacency matrix in the form of [lag, from, to] or [N, lag, from, to] where N is the number of sampled adjacency matrices.
+        adj_matrix_2 (np.ndarray): Adjacency matrix in the form of [lag2, from, to] or [N, lag2, from, to] where N is the number of sampled adjacency matrices.
+    """
+
+    if len(adj_matrix.shape) == 3:
+        adj_matrix = np.expand_dims(adj_matrix, axis=0)
+    if len(adj_matrix_2.shape) == 3:
+        adj_matrix_2 = np.expand_dims(adj_matrix_2, axis=0)
+
+    n_nodes, n_lag_1 = adj_matrix.shape[2], adj_matrix.shape[1]
+    n_nodes_2, n_lag_2 = adj_matrix_2.shape[2], adj_matrix_2.shape[1]
+    assert (
+        n_nodes == n_nodes_2
+    ), f"The number of nodes for two input adjacency are not consistent. Adjacency matrix 1: {n_nodes} Adjacency matrix 2:{n_nodes_2}."
+
+    # Adapt them to compatible shapes
+    max_lag = max(n_lag_1, n_lag_2)
+    adj_matrix = np.pad(adj_matrix, [(0, 0), (0, max_lag - n_lag_1), (0, 0), (0, 0)])
+    adj_matrix_2 = np.pad(adj_matrix_2, [(0, 0), (0, max_lag - n_lag_2), (0, 0), (0, 0)])
+
+    # Convert to static adjacency matrices
+    static_graph_1 = convert_to_static(adj_matrix)
+    static_graph_2 = convert_to_static(adj_matrix_2)
+
+    return np.squeeze(static_graph_1), np.squeeze(static_graph_2)
+
+
+def convert_to_static(adj_matrix: np.ndarray) -> np.ndarray:
+    """
+    This method converts the input temporal adjacency matrix into a larger static adjacency matrix.
+    Args:
+        adj_matrix (np.ndarray): Adjacency matrix with shape [N, lag, from, to] where N is the number of sampled adjacency matrices.
+
+    Returns:
+        static_adj_matrix (np.ndarray): Static adjacency matrix with shape [N, lag*from, lag*to].
+    """
+
+    n_nodes, n_lag = adj_matrix.shape[2], adj_matrix.shape[1]
+
+    for n in range(len(adj_matrix)):
+        # Concatenate to [lag*node,node]
+        cur_adj_matrix = np.concatenate(adj_matrix[n], axis=0)
+        # Zero submatrix
+        zero_matrix = np.zeros((cur_adj_matrix.shape[0], n_nodes * (n_lag - 1)), dtype=bool)
+        # Static graph
+        cur_static_adj_matrix = np.expand_dims(np.concatenate((cur_adj_matrix, zero_matrix), axis=1), axis=0)
+        if n == 0:
+            static_adj_matrix = cur_static_adj_matrix
+        else:
+            static_adj_matrix = np.stack((static_adj_matrix, cur_static_adj_matrix))
+
+    return static_adj_matrix

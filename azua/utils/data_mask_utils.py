@@ -4,7 +4,6 @@ from itertools import product
 import numpy as np
 import pandas as pd
 import torch
-from scipy.sparse import csr_matrix
 
 from ..datasets.variables import Variables
 
@@ -32,11 +31,6 @@ def sample_inducing_points(data: np.ndarray, mask: np.ndarray, row_count: int) -
 
 @overload
 def sample_inducing_points(data: torch.Tensor, mask: torch.Tensor, row_count: int) -> Tuple[torch.Tensor, torch.Tensor]:
-    ...
-
-
-@overload
-def sample_inducing_points(data: csr_matrix, mask: csr_matrix, row_count: int) -> Tuple[csr_matrix, csr_matrix]:
     ...
 
 

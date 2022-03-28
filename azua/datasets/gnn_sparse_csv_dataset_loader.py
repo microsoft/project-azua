@@ -1,17 +1,19 @@
+import ast
+import logging
+import os
+from typing import Dict, Optional, Tuple, Union, Any, cast, List
+
 import numpy as np
 import pandas as pd
 import torch
-from torch_geometric.data import Data
-import os
-from torch.nn.functional import one_hot
-import ast
-import logging
-from ..datasets.sparse_csv_dataset_loader import SparseCSVDatasetLoader
-from ..datasets.dataset import SparseDataset, GraphDataset
-from typing import Dict, Optional, Tuple, Union, Any, cast, List
-from scipy.sparse.csr import csr_matrix
 from pandas import DataFrame
+from scipy.sparse.csr import csr_matrix
 from torch import Tensor
+from torch.nn.functional import one_hot
+from torch_geometric.data import Data
+
+from ..datasets.dataset import SparseDataset, GraphDataset
+from ..datasets.sparse_csv_dataset_loader import SparseCSVDatasetLoader
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,7 @@ class GNNSparseCSVDatasetLoader(SparseCSVDatasetLoader):
             dataset: GraphDataset object, holding the data and variable metadata as well as
             the torch_geometric Data object as one of it's attributes.
         """
+        assert isinstance(model_config, Dict), "model_config should be a Dict."
         assert (
             model_config["is_inductive_task"] if split_type == "rows" else not model_config["is_inductive_task"]
         ), "is_inductive_task needs to be True (False) when split_type is 'rows' ('elements')."
@@ -91,6 +94,8 @@ class GNNSparseCSVDatasetLoader(SparseCSVDatasetLoader):
         Returns:
             dataset: GraphDataset object, holding the data and variable metadata.
         """
+        # Add assertion to avoid mypy error: None is not indexable
+        assert isinstance(model_config, Dict), "model_config should be a Dict."
         assert (
             model_config["is_inductive_task"] if split_type == "rows" else not model_config["is_inductive_task"]
         ), "is_inductive_task needs to be True (False) when split_type is 'rows' ('elements')."
@@ -615,7 +620,7 @@ class GNNSparseCSVDatasetLoader(SparseCSVDatasetLoader):
             assert len(df) == len(df_merged)
 
             edge_meta_df = pd.read_csv(edge_meta_path)
-            edge_meta_df["ts"] = pd.to_datetime(edge_meta_df["DateAnswered"]).values.astype(np.float)
+            edge_meta_df["ts"] = pd.to_datetime(edge_meta_df["DateAnswered"]).values.astype(np.float_)
             ts_min, ts_max = edge_meta_df["ts"].min(), edge_meta_df["ts"].max()
             edge_meta_df["ts"] = (edge_meta_df["ts"] - ts_min) / (ts_max - ts_min)
 

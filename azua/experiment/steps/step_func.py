@@ -57,10 +57,12 @@ def preprocess_configs(
         if model_type in ["vaem", "vaem_predictive", "transformer_encoder_vaem"]:
             train_hypers["marginal_epochs"] = 2
             train_hypers["dep_epochs"] = 2
-        elif model_type in ["fcause_dowhy"]:
+        elif model_type in ["deci_dowhy"]:
             train_hypers["discovery_epochs"] = 2
             train_hypers["discovery_max_steps_auglag"] = 1
             train_hypers["discovery_max_epochs_per_step"] = 2
+        elif model_type in ["deci", "deci_gaussian", "deci_spline"]:
+            train_hypers["max_steps_auglag"] = 2
         else:
             train_hypers["epochs"] = 2
 

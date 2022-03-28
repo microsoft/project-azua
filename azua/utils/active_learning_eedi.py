@@ -13,7 +13,6 @@ import sklearn
 
 from ..utils.plot_functions import plot_rewards_scatter
 from ..utils.synthetic_imputations import synthetic_fill_variables
-from typing import Dict, List
 
 
 # This is on BO based next best action for eedi with heuristic dynamics
@@ -199,7 +198,7 @@ def expected_improvement(
     combinations_list=None,
     method=None,
     max_steps=None,
-) -> List[Dict[int, float]]:
+) -> np.ndarray:
 
     """
     Calculate expected improvement for adding each observable feature individually.
@@ -273,13 +272,13 @@ def expected_improvement(
         else:
             rewards_list.append(rewards)
 
-    rewards_list = np.transpose(np.vstack(rewards_list))  # type: ignore
+    rewards_list_arr = np.transpose(np.vstack(rewards_list))
 
     if method not in ["b_ei", "bin", "gls"]:
         # Set reward to nan if feature is already observed
-        rewards_list[obs_mask == 1.0] = np.nan
+        rewards_list_arr[obs_mask == 1.0] = np.nan
 
-    return rewards_list
+    return rewards_list_arr
 
 
 def update_data_mask(question_ids, data, mask, imputed):

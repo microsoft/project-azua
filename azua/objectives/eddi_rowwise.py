@@ -194,5 +194,5 @@ class EDDIRowwiseObjective(EDDIObjective):
             rewards = np.vstack(rewards_list)
 
             if not as_array:
-                rewards = [{idx: float(val) for idx, val in enumerate(row)} for row in rewards]
+                return [{idx: float(val) for idx, val in enumerate(row)} for row in rewards]
         return rewards

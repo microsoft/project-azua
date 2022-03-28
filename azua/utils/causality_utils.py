@@ -1,10 +1,14 @@
-import torch
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import numpy as np
-from typing import Dict, List, Optional
+import scipy
+import torch
+
+from ..datasets.intervention_data import InterventionData
 from ..datasets.variables import Variables
-from ..utils.data_mask_utils import to_tensors
 from ..models.imodel import IModelForCausalInference, IModelForInterventions
-from ..datasets.intervention_data import IntervetionData
+from ..utils.data_mask_utils import to_tensors
+from ..utils.torch_utils import LinearModel, MultiROFFeaturiser
 
 
 def intervene_graph(adj_matrix: torch.Tensor, intervention_idxs: torch.Tensor, copy_graph: bool = True):
@@ -26,10 +30,12 @@ def intervene_graph(adj_matrix: torch.Tensor, intervention_idxs: torch.Tensor, c
     return adj_matrix
 
 
-def intervention_to_tensor(intervention_idxs, intervention_values, device):
+def intervention_to_tensor(intervention_idxs, intervention_values, group_mask, device):
     """
-    Maps empty interventions to nan and np.ndarray intervention data to torch tensors
+    Maps empty interventions to nan and np.ndarray intervention data to torch tensors.
+    Converts indices to a mask using the group_mask.
     """
+    intervention_mask = None
 
     if intervention_idxs is not None and intervention_values is not None:
         (intervention_idxs,) = to_tensors(intervention_idxs, device=device, dtype=torch.long)
@@ -41,17 +47,30 @@ def intervention_to_tensor(intervention_idxs, intervention_values, device):
         if intervention_values.dim() == 0:
             intervention_values = None
 
-    return intervention_idxs, intervention_values
+        intervention_mask = get_mask_from_idxs(intervention_idxs, group_mask, device)
+
+    return intervention_idxs, intervention_mask, intervention_values
+
+
+def get_mask_from_idxs(idxs, group_mask, device):
+    """
+    Generate mask for observations or samples from indices using group_mask
+    """
+    mask = torch.zeros(group_mask.shape[0], device=device, dtype=torch.bool)
+    mask[idxs] = 1
+    (group_mask,) = to_tensors(group_mask, device=device, dtype=torch.bool)
+    mask = (mask.unsqueeze(1) * group_mask).sum(0).bool()
+    return mask
 
 
 def get_treatment_data_logprob(
-    model: IModelForCausalInference, intervention_datasets: List[IntervetionData], most_likely_graph: bool = False,
+    model: IModelForCausalInference, intervention_datasets: List[InterventionData], most_likely_graph: bool = False,
 ):
     """
     Computes the log-probability of test-points sampled from intervened distributions.
     Args:
         model: IModelForInterventions with which we can evaluate the log-probability of points while applying interventions to the generative model
-        intervention_datasets: List[IntervetionData] containing intervetions and samples from the ground truth data generating process when the intervention is applied
+        intervention_datasets: List[InterventionData] containing intervetions and samples from the ground truth data generating process when the intervention is applied
         most_likely_graph: whether to use the most likely causal graph (True) or to sample graphs (False)
     """
     all_log_probs = []
@@ -77,13 +96,13 @@ def get_treatment_data_logprob(
         per_intervention_log_probs_std.append(intervention_log_probs.std(axis=0))
 
     if len(all_log_probs) > 0:
-        all_log_probs = np.concatenate(all_log_probs, axis=0)
+        all_log_probs_arr = np.concatenate(all_log_probs, axis=0)
     else:
-        all_log_probs = np.array([np.nan])
+        all_log_probs_arr = np.array([np.nan])
 
     return {
-        "all_log_probs_mean": all_log_probs.mean(axis=0),
-        "all_log_probs_std": all_log_probs.std(axis=0),
+        "all_log_probs_mean": all_log_probs_arr.mean(axis=0),
+        "all_log_probs_std": all_log_probs_arr.std(axis=0),
         "per_intervention_log_probs_mean": per_intervention_log_probs_mean,
         "per_intervention_log_probs_std": per_intervention_log_probs_std,
     }
@@ -92,9 +111,10 @@ def get_treatment_data_logprob(
 def get_ate_rms(
     model: IModelForInterventions,
     test_samples: np.ndarray,
-    intervention_datasets: List[IntervetionData],
+    intervention_datasets: List[InterventionData],
     variables: Variables,
     most_likely_graph: bool = False,
+    processed: bool = True,
 ):
     """
     Computes the rmse between the ground truth ate and the ate predicted by our model across all available interventions 
@@ -102,56 +122,89 @@ def get_ate_rms(
     Args:
         model: IModelForInterventions from which we can sample points while applying interventions 
         test_samples: np.ndarray of shape (Nsamples, observation_dimension) containing samples from the non-intervened distribution p(y)
-        intervention_datasets: List[IntervetionData] containing intervetions and samples from the ground truth data generating process when the intervention is applied
+        intervention_datasets: List[InterventionData] containing intervetions and samples from the ground truth data generating process when the intervention is applied
         variables: Instance of Variables containing metada used for normalisation
         most_likely_graph: whether to use the most likely causal graph (True) or to sample graphs (False)
+        processed: whether the data has been processed
     """
 
     error_vec = []
     norm_error_vec = []
 
     for intervention_data in intervention_datasets:
+
         if intervention_data.reference_data is not None:
             reference_data = intervention_data.reference_data
         else:
             reference_data = test_samples
-        ate = get_ate_from_samples(intervention_data.test_data, reference_data, variables, normalise=False)
-        norm_ate = get_ate_from_samples(intervention_data.test_data, reference_data, variables, normalise=True)
+
+        # conditions are applied to the test data when it is generated. As a result computing ATE on this data returns the CATE.
+        ate = get_ate_from_samples(
+            intervention_data.test_data, reference_data, variables, normalise=False, processed=processed
+        )
+        norm_ate = get_ate_from_samples(
+            intervention_data.test_data, reference_data, variables, normalise=True, processed=processed
+        )
 
         if intervention_data.effect_idxs is not None:
-            ate = ate[intervention_data.effect_idxs]
-            norm_ate = norm_ate[intervention_data.effect_idxs]
+            if processed:
+                effect_mask = get_mask_from_idxs(intervention_data.effect_idxs, variables.group_mask, "cpu").numpy()
+                ate = ate[effect_mask]
+                norm_ate = norm_ate[effect_mask]
+            else:
+                ate = ate[intervention_data.effect_idxs]
+                norm_ate = norm_ate[intervention_data.effect_idxs]
+
+        # Check for conditioning
+        if intervention_data.conditioning_idxs is not None:
+            if most_likely_graph:
+                Ngraphs = 1
+                Nsamples_per_graph = 50000
+            else:
+                Ngraphs = 10
+                Nsamples_per_graph = 5000
+        else:
+            if most_likely_graph:
+                Ngraphs = 1
+                Nsamples_per_graph = 20000
+            else:
+                Ngraphs = 10000
+                Nsamples_per_graph = 2
 
         model_ate, model_norm_ate = model.cate(
             intervention_idxs=intervention_data.intervention_idxs,
             intervention_values=intervention_data.intervention_values,
             reference_values=intervention_data.intervention_reference,
             effect_idxs=intervention_data.effect_idxs,
+            conditioning_idxs=intervention_data.conditioning_idxs,
+            conditioning_values=intervention_data.conditioning_values,
             most_likely_graph=most_likely_graph,
+            Nsamples_per_graph=Nsamples_per_graph,
+            Ngraphs=Ngraphs,
         )
 
         error_vec.append(np.abs(model_ate - ate))
         norm_error_vec.append(np.abs(model_norm_ate - norm_ate))
 
     # error is computed per intervention
-    error_vec = np.stack(error_vec, axis=0)  # (N_interventions, N_inputs)
-    norm_error_vec = np.stack(norm_error_vec, axis=0)  # (N_interventions, N_inputs)
+    error_vec_arr = np.stack(error_vec, axis=0)  # (N_interventions, N_inputs)
+    norm_error_vec_arr = np.stack(norm_error_vec, axis=0)  # (N_interventions, N_inputs)
 
     # rmse computed over interventions
-    rmse_across_interventions = (error_vec ** 2).mean(axis=0) ** 0.5  # (N_inputs)
-    norm_rmse_across_interventions = (norm_error_vec ** 2).mean(axis=0) ** 0.5  # (N_inputs)
+    rmse_across_interventions = np.square(error_vec_arr).mean(axis=0) ** 0.5  # (N_inputs)
+    norm_rmse_across_interventions = np.square(norm_error_vec_arr).mean(axis=0) ** 0.5  # (N_inputs)
 
     # rmse computed over dimensions
-    rmse_across_dimensions = (error_vec ** 2).mean(axis=1) ** 0.5  # (N_interventions)
-    norm_rmse_across_dimensions = (norm_error_vec ** 2).mean(axis=1) ** 0.5  # (N_interventions)
+    rmse_across_dimensions = np.square(error_vec_arr).mean(axis=1) ** 0.5  # (N_interventions)
+    norm_rmse_across_dimensions = np.square(norm_error_vec_arr).mean(axis=1) ** 0.5  # (N_interventions)
 
     # ALL represents average over columns
-    all_rmse = (error_vec ** 2).mean(axis=(0, 1)) ** 0.5  # (1)
-    all_norm_rmse = (norm_error_vec ** 2).mean(axis=(0, 1)) ** 0.5  # (1)
+    all_rmse = np.square(error_vec_arr).mean(axis=(0, 1)) ** 0.5  # (1)
+    all_norm_rmse = np.square(norm_error_vec_arr).mean(axis=(0, 1)) ** 0.5  # (1)
 
     return {
-        "error_vec": error_vec,
-        "norm_error_vec": norm_error_vec,
+        "error_vec": error_vec_arr,
+        "norm_error_vec": norm_error_vec_arr,
         "rmse_across_interventions": rmse_across_interventions,
         "norm_rmse_across_interventions": norm_rmse_across_interventions,
         "rmse_across_dimensions": rmse_across_dimensions,
@@ -162,7 +215,11 @@ def get_ate_rms(
 
 
 def get_ate_from_samples(
-    intervened_samples: np.ndarray, baseline_samples: np.ndarray, variables: Variables, normalise: bool = False
+    intervened_samples: np.ndarray,
+    baseline_samples: np.ndarray,
+    variables: Variables,
+    normalise: bool = False,
+    processed: bool = True,
 ):
     """
     Computes ATE E[y | do(x)=a] - E[y] from samples of y from p(y | do(x)=a) and p(y)
@@ -172,24 +229,117 @@ def get_ate_from_samples(
         intervened_samples: np.ndarray of shape (Nsamples, observation_dimension) containing samples from the non-intervened distribution p(y)
         variables: Instance of Variables containing metada used for normalisation
         normalise: boolean indicating whether to normalise samples by their maximum and minimum values 
+        processed: whether the data has been processed (which affects the column numbering)
     """
     if normalise:
         # Normalise values between 0 and 1.
         # TODO 18375: can we avoid the repeated (un)normalization of data before/during this function or at least
         # share the normalization logic in both places?
-        lowers = np.zeros(variables.num_processed_cols)
-        uppers = np.ones(variables.num_processed_cols)
-        for region, variable in zip(variables.processed_cols, variables):
+        if processed:
+            n_cols = variables.num_processed_cols
+            cols = variables.processed_cols
+        else:
+            n_cols = variables.num_unprocessed_cols
+            cols = variables.unprocessed_cols
+        lowers = np.zeros(n_cols)
+        uppers = np.ones(n_cols)
+        for region, variable in zip(cols, variables):
             if variable.type == "continuous":
                 lowers[region] = variable.lower
                 uppers[region] = variable.upper
-        intervened_samples = (intervened_samples.copy() - lowers) / (uppers - lowers)
-        baseline_samples = (baseline_samples.copy() - lowers) / (uppers - lowers)
+                
+        intervened_samples = np.subtract(intervened_samples.copy(), lowers) / np.subtract(uppers, lowers)
+        baseline_samples = np.subtract(baseline_samples.copy(), lowers) / np.subtract(uppers, lowers)
 
     intervened_mean = intervened_samples.mean(axis=0)
     baseline_mean = baseline_samples.mean(axis=0)
 
     return intervened_mean - baseline_mean
+
+
+def get_cate_from_samples(
+    intervened_samples: torch.tensor,
+    baseline_samples: torch.tensor,
+    conditioning_mask: torch.tensor,
+    conditioning_values: torch.tensor,
+    effect_mask: torch.tensor,
+    variables: Variables,
+    normalise: bool = False,
+    rff_lengthscale: Union[int, float, List[float], Tuple[float, ...]] = (0.1, 1),
+    rff_n_features: int = 3000,
+):
+    """
+    Estimate CATE using a functional approach: We fit a function that takes as input the conditioning variables
+     and as output the outcome variables using intervened_samples as training points. We do the same while using baseline_samples
+     as training data. We estimate CATE as the difference between the functions' outputs when the input is set to conditioning_values.
+     As functions we use linear models on a random fourier feature basis. If intervened_samples and baseline_samples are provided for multiple graphs
+     the CATE estimate is averaged across graphs. 
+
+    Args:
+        intervened_samples: tensor of shape (Ngraphs, Nsamples, Nvariables) sampled from intervened (non-conditional) distribution
+        baseline_samples: tensor of shape (Ngraphs, Nsamples, Nvariables) sampled from a reference distribution. Note that this could mean a reference intervention has been applied. 
+        conditioning_mask: boolean tensor which indicates which variables we want to condition on
+        conditioning_values: tensor containing values of variables we want to condition on
+        effect_mask: boolean tensor which indicates which outcome variables for which we want to estimate CATE
+        variables: Instance of Variables containing metada used for normalisation
+        normalise: boolean indicating whether to normalise samples by their maximum and minimum values 
+        rff_lengthscale: either a positive float/int indicating the lengthscale of the RBF kernel or a list/tuple
+         containing the lower and upper limits of a uniform distribution over the lengthscale. The latter option is prefereable when there is no prior knowledge about functional form.
+        rff_n_features: Number of random features with which to approximate the RBF kernel. Larger numbers result in lower variance but are more computationally demanding.
+    Returns:
+        CATE_estimates: tensor of shape (len(effect_idxs)) containing our estimates of CATE for outcome variables
+    """
+
+    # TODO: we are assuming the conditioning variable is d-connected to the target but we should probably use the networkx dseparation method to check this in the future
+
+    if normalise:
+        # Normalise values between 0 and 1.
+        # TODO 18375: can we avoid the repeated (un)normalization of data before/during this function or at least
+        # share the normalization logic in both places?
+        lowers = torch.zeros(
+            variables.num_processed_cols, dtype=intervened_samples.dtype, device=intervened_samples.device
+        )
+        uppers = torch.ones(
+            variables.num_processed_cols, dtype=intervened_samples.dtype, device=intervened_samples.device
+        )
+        for region, variable in zip(variables.processed_cols, variables):
+            if variable.type == "continuous":
+                lowers[region] = variable.lower
+                uppers[region] = variable.upper
+        intervened_samples = (intervened_samples.clone() - lowers) / (uppers - lowers)
+        baseline_samples = (baseline_samples.clone() - lowers) / (uppers - lowers)
+
+    assert effect_mask.sum() == 1.0, "Only 1d outcomes are supported"
+
+    test_inputs = conditioning_values.unsqueeze(1)
+
+    featuriser = MultiROFFeaturiser(rff_n_features=rff_n_features, lengthscale=rff_lengthscale)
+    featuriser.fit(X=intervened_samples.new_ones((1, int(conditioning_mask.sum()))))
+
+    CATE_estimates = []
+    for graph_idx in range(intervened_samples.shape[0]):
+        intervened_train_inputs = intervened_samples[graph_idx, :, conditioning_mask]
+        reference_train_inputs = baseline_samples[graph_idx, :, conditioning_mask]
+
+        featurised_intervened_train_inputs = featuriser.transform(intervened_train_inputs)
+        featurised_reference_train_inputs = featuriser.transform(reference_train_inputs)
+        featurised_test_input = featuriser.transform(test_inputs)
+
+        intervened_train_targets = intervened_samples[graph_idx, :, effect_mask].reshape(intervened_samples.shape[1])
+        reference_train_targets = baseline_samples[graph_idx, :, effect_mask].reshape(intervened_samples.shape[1])
+
+        intervened_predictive_model = LinearModel()
+        intervened_predictive_model.fit(features=featurised_intervened_train_inputs, targets=intervened_train_targets)
+
+        reference_predictive_model = LinearModel()
+        reference_predictive_model.fit(features=featurised_reference_train_inputs, targets=reference_train_targets)
+
+        CATE_estimates.append(
+            intervened_predictive_model.predict(features=featurised_test_input)[0]
+            - reference_predictive_model.predict(features=featurised_test_input)[0]
+        )
+
+    return torch.stack(CATE_estimates, dim=0).mean(dim=0)
 
 
 def generate_and_log_intervention_result_dict(
@@ -217,7 +367,7 @@ def generate_and_log_intervention_result_dict(
 
     """
 
-    metric_dict = {}
+    metric_dict: Dict[str, Any] = {}
 
     if log_prob_dict is not None:
 
@@ -383,6 +533,12 @@ def generate_and_log_intervention_result_dict(
     return metric_dict
 
 
+def dag_pen_np(X):
+    assert X.shape[0] == X.shape[1]
+    X = torch.from_numpy(X)
+    return (torch.trace(torch.matrix_exp(X)) - X.shape[0]).item()
+
+
 def int2binlist(i: int, n_bits: int):
     """
     Convert integer to list of ints with values in {0, 1}
@@ -390,6 +546,33 @@ def int2binlist(i: int, n_bits: int):
     assert i < 2 ** n_bits
     str_list = list(np.binary_repr(i, n_bits))
     return [int(i) for i in str_list]
+
+
+def approximate_maximal_acyclic_subgraph(adj_matrix: np.ndarray, n_samples: int = 10):
+    """
+    Compute an (approximate) maximal acyclic subgraph of a directed non-dag but removing at most 1/2 of the edges
+    See Vazirani, Vijay V. Approximation algorithms. Vol. 1. Berlin: springer, 2001, Page 7;
+    Also Hassin, Refael, and Shlomi Rubinstein. "Approximations for the maximum acyclic subgraph problem."
+    Information processing letters 51.3 (1994): 133-140.
+    Args:
+        adj_matrix: adjacency matrix of a directed graph (may contain cycles)
+        n_samples: number of the random permutations generated. Default is 10.
+    Returns:
+        an adjacency matrix of the acyclic subgraph
+    """
+    # assign each node with a order
+    adj_dag = np.zeros_like(adj_matrix)
+    for n in range(n_samples):
+        random_order = np.expand_dims(np.random.permutation(adj_matrix.shape[0]), 0)
+        # subgraph with only forward edges defined by the assigned order
+        adj_forward = ((random_order.T > random_order).astype(int)) * adj_matrix
+        # subgraph with only backward edges defined by the assigned order
+        adj_backward = ((random_order.T < random_order).astype(int)) * adj_matrix
+        # return the subgraph with the least deleted edges
+        adj_dag_n = adj_forward if adj_backward.sum() < adj_forward.sum() else adj_backward
+        if adj_dag_n.sum() > adj_dag.sum():
+            adj_dag = adj_dag_n
+    return adj_dag
 
 
 def cpdag2dags(cp_mat: np.ndarray, samples: Optional[int] = None):
@@ -400,20 +583,25 @@ def cpdag2dags(cp_mat: np.ndarray, samples: Optional[int] = None):
     Returns:
         3 dimensional tensor, where the first indexes all the possible DAGs
     """
-
     assert len(cp_mat.shape) == 2 and cp_mat.shape[0] == cp_mat.shape[1]
 
     # matrix composed of just undetermined edges
     cycle_mat = (cp_mat == cp_mat.T) * cp_mat
     # return original matrix if there are no length-1 cycles
     if cycle_mat.sum() == 0:
+        if dag_pen_np(cp_mat) != 0.0:
+            cp_mat = approximate_maximal_acyclic_subgraph(cp_mat)
         return cp_mat[None, :, :]
 
     # matrix of determined edges
-    cp_no_cycles = cp_mat - cycle_mat
+    cp_determined_subgraph = cp_mat - cycle_mat
+
+    # prune cycles if the matrix of determined edges is not a dag
+    if dag_pen_np(cp_determined_subgraph.copy()) != 0.0:
+        cp_determined_subgraph = approximate_maximal_acyclic_subgraph(cp_determined_subgraph, 1000)
 
     # number of parent nodes for each node under the well determined matrix
-    N_in_nodes = cp_no_cycles.sum(axis=0)
+    N_in_nodes = cp_determined_subgraph.sum(axis=0)
 
     # lower triangular version of cycles edges: only keep cycles in one direction.
     cycles_tril = np.tril(cycle_mat, k=-1)
@@ -431,7 +619,7 @@ def cpdag2dags(cp_mat: np.ndarray, samples: Optional[int] = None):
     mask_indices = list(np.random.permutation(np.arange(max_dags)))
 
     # iterate over list of all potential combinations of new edges. 0 represents keeping edge from upper triangular and 1 from lower triangular
-    dag_list = []
+    dag_list: list = []
     while mask_indices and len(dag_list) < samples:
 
         mask_index = mask_indices.pop()
@@ -447,15 +635,48 @@ def cpdag2dags(cp_mat: np.ndarray, samples: Optional[int] = None):
         new_colider = np.any(unique_counts > 1) or np.any(N_in_nodes[incoming_edges] > 0)
 
         if not new_colider:
-
             # get indices of new edges by sampling from lower triangular mat and upper triangular according to indices
             edge_selection = undetermined_idx_mat.copy()
             edge_selection[mask == 0, :] = np.fliplr(edge_selection[mask == 0, :])
 
             # add new edges to matrix and add to dag list
-            new_dag = cp_no_cycles.copy()
+            new_dag = cp_determined_subgraph.copy()
             new_dag[(edge_selection[:, 0], edge_selection[:, 1])] = 1
 
-            dag_list.append(new_dag)
+            # Check for high order cycles
+            if dag_pen_np(new_dag.copy()) == 0.0:
+                dag_list.append(new_dag)
+    # When all combinations of new edges create cycles, we will only keep determined ones
+    if len(dag_list) == 0:
+        dag_list.append(cp_determined_subgraph)
 
     return np.stack(dag_list, axis=0)
+
+
+def process_adjacency_mats(adj_mats: np.ndarray, num_nodes: int):
+    """
+    This processes the adjacency matrix in the format [num, variable, variable]. It will remove the duplicates and non DAG adjacency matrix.
+    Args:
+        adj_mats (np.ndarry): A group of adjacency matrix
+        num_nodes (int): The number of variables (dimensions of the adjacency matrix)
+
+    Returns:
+        A list of adjacency matrix without duplicates and non DAG
+        A np.ndarray storing the weights of each adjacency matrix.
+    """
+
+    # This method will get rid of the non DAG and duplicated ones. It also returns a proper weight for each of the adjacency matrix
+    if len(adj_mats.shape) == 2:
+        # Single adjacency matrix
+        assert (np.trace(scipy.linalg.expm(adj_mats)) - num_nodes) == 0, "Generate non DAG graph"
+        return adj_mats, np.ones(1)
+    else:
+        # Multiple adjacency matrix samples
+        # Remove non DAG adjacency matrix
+        adj_mats = np.array([adj_mat for adj_mat in adj_mats if (np.trace(scipy.linalg.expm(adj_mat)) - num_nodes) == 0])
+        assert np.any(adj_mats), "Generate non DAG graph"
+        # Remove duplicated adjacency and aggregate the weights
+        adj_mats_unique, dup_counts = np.unique(adj_mats, axis=0, return_counts=True)
+        # Normalize the weights
+        adj_weights = dup_counts / np.sum(dup_counts)
+        return adj_mats_unique, adj_weights

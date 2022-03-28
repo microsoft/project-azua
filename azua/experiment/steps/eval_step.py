@@ -4,20 +4,20 @@ Run evaluation on a trained PVAE.
 To run: python run_eval.py boston -ic parameters/impute_config.json -md runs/run_name/models/model_id
 """
 
-from ...datasets.intervention_data import IntervetionData
 import datetime as dt
-from logging import Logger
-import numpy as np
 import os
-from scipy.sparse import issparse
-from typing import Any, Dict, cast, Optional, Union
 import warnings
+from logging import Logger
+from typing import Any, Dict, cast, Optional, Union
 
-from ...datasets.dataset import Dataset, SparseDataset, CausalDataset
+import numpy as np
+from scipy.sparse import issparse, csr_matrix
+
 from ..imetrics_logger import IMetricsLogger
+from ...datasets.dataset import Dataset, SparseDataset, CausalDataset, InterventionData, TemporalDataset
 from ...models.imodel import IModelForImputation, IModelForObjective, IModelForCausalInference, IModelForInterventions
 from ...models.pvae_base_model import PVAEBaseModel
-from ...utils.torch_utils import set_random_seeds
+from ...utils.causality_utils import get_ate_rms, get_treatment_data_logprob, generate_and_log_intervention_result_dict
 from ...utils.check_information_gain import test_information_gain
 from ...utils.imputation import (
     run_imputation_with_stats,
@@ -30,9 +30,13 @@ from ...utils.metrics import (
     compute_target_metrics,
     save_train_val_test_metrics,
 )
+from ...utils.nri_utils import (
+    edge_prediction_metrics,
+    edge_prediction_metrics_multisample,
+    convert_temporal_adj_matrix_to_static,
+)
 from ...utils.plot_functions import violin_plot_imputations
-from ...utils.nri_utils import edge_prediction_metrics, edge_prediction_metrics_multisample
-from ...utils.causality_utils import get_ate_rms, get_treatment_data_logprob, generate_and_log_intervention_result_dict
+from ...utils.torch_utils import set_random_seeds
 
 
 def run_eval_main(
@@ -216,8 +220,11 @@ def run_eval_main(
 
         # For ground truth data
         if issparse(test_data):
-            test_data_dense = test_data.toarray()
-            test_mask_dense = test_mask.toarray()
+            # Declare types to fix mypy error
+            test_data_: csr_matrix = test_data
+            test_mask_: csr_matrix = test_mask
+            test_data_dense = test_data_.toarray()
+            test_mask_dense = test_mask_.toarray()
         else:
             test_data_dense = test_data
             test_mask_dense = test_mask
@@ -252,7 +259,7 @@ def run_eval_main(
     if (
         len(variables.target_var_idxs) == 0
         and not issparse(train_data)
-        and model.name() not in ["vicause", "fcause", "fcause_gaussian", "fcause_spline"]
+        and model.name() not in ["vicause", "deci", "deci_gaussian", "deci_spline"]
         and model.name() not in ["mean_imputing", "mice", "missforest", "zero_imputing"]
     ):
         # If there is no target then we compute additional metrics that are question quality and difficulty.
@@ -268,8 +275,8 @@ def run_eval_main(
         )
     elif model.name() == "vicause":
         warnings.warn("Question quality and difficulty are not currently implemented for vicause")
-    elif model.name() in ["fcause", "fcause_gaussian", "fcause_spline"]:
-        warnings.warn("Question quality and difficulty are not currently implemented for fcause model")
+    elif model.name() in ["deci", "deci_gaussian", "deci_spline"]:
+        warnings.warn("Question quality and difficulty are not currently implemented for deci model")
     elif model.name() in ["mean_imputing", "mice", "missforest", "zero_imputing"]:
         warnings.warn("Question quality and difficulty are not currently implemented for imputation baselines")
     if metrics_logger:
@@ -293,17 +300,25 @@ def eval_causal_discovery(
     """
     adj_ground_truth = dataset.get_adjacency_data_matrix()
 
+    # For DECI, the default is to give 100 samples of the graph posterior
     adj_pred = model.get_adj_matrix().astype(float).round()
+
+    # Convert temporal adjacency matrices to static adjacency matrices, currently does not support partially observed ground truth (i.e. subgraph_idx=None).
+    if type(dataset) == TemporalDataset:
+        adj_ground_truth, adj_pred = convert_temporal_adj_matrix_to_static(adj_ground_truth, adj_pred)
+        subgraph_idx = None
+    else:
+        subgraph_idx = dataset.get_known_subgraph_mask_matrix()
 
     # save adjacency matrix
     np.save(os.path.join(model.save_dir, "adj_matrices"), adj_pred, allow_pickle=True, fix_imports=True)
 
     if len(adj_pred.shape) == 2:
         # If predicts single adjacency matrix
-        results = edge_prediction_metrics(adj_ground_truth, adj_pred)
+        results = edge_prediction_metrics(adj_ground_truth, adj_pred, adj_matrix_mask=subgraph_idx)
     elif len(adj_pred.shape) == 3:
         # If predicts multiple adjacency matrices (stacked)
-        results = edge_prediction_metrics_multisample(adj_ground_truth, adj_pred)
+        results = edge_prediction_metrics_multisample(adj_ground_truth, adj_pred, adj_matrix_mask=subgraph_idx)
     if metrics_logger is not None:
         # Log metrics to AzureML
         metrics_logger.log_value("adjacency.recall", results["adjacency_recall"])
@@ -331,6 +346,7 @@ def eval_treatment_effects(
     model: IModelForInterventions,
     metrics_logger: Optional[IMetricsLogger] = None,
     eval_likelihood: bool = True,
+    process_dataset: bool = True,
 ) -> None:
     """
     Run treatment effect experiments: ATE RMSE and interventional distribution log-likelihood with graph marginalisation and most likely (ml) graph.
@@ -343,27 +359,45 @@ def eval_treatment_effects(
         name_prepend: Optional string that will be prepended to the json save name and logged metrics.
              This allows us to distinguish results from end2end models from results computed with downstream models (models that require graph as input, like DoWhy)
         eval_likelihood: Optional bool flag that will disable the log likelihood evaluation
+        process_data: Whether to apply the data processor to the interventional data. This is done for Azua-internal models such as DECI, and not for DoWhy.
 
     This requires the model to implement methods sample() to sample from the model distribution with interventions
      and log_prob() to evaluate the density of test samples under interventions
     """
-    test_data, _ = dataset.test_data_and_mask
+    # Process test and intervention data in the same way that train data is processed
+    if process_dataset:
+        processed_dataset = model.data_processor.process_dataset(dataset)
+    else:
+        processed_dataset = dataset
+    test_data, _ = processed_dataset.test_data_and_mask
 
-    rmse_dict = get_ate_rms(model, test_data.astype(float), dataset.get_intervention_data(), dataset.variables)
+    # TODO: when scaling continuous variables in `process_dataset` we should call `revert_data` to evaluate RMSE in original space
+    rmse_dict = get_ate_rms(
+        model,
+        test_data.astype(float),
+        processed_dataset.get_intervention_data(),
+        processed_dataset.variables,
+        processed=process_dataset,
+    )
     rmse_most_likely_dict = get_ate_rms(
-        model, test_data.astype(float), dataset.get_intervention_data(), dataset.variables, most_likely_graph=True
+        model,
+        test_data.astype(float),
+        processed_dataset.get_intervention_data(),
+        processed_dataset.variables,
+        most_likely_graph=True,
+        processed=process_dataset,
     )
 
     if eval_likelihood:
-        log_prob_dict = get_treatment_data_logprob(model, dataset.get_intervention_data())
+        log_prob_dict = get_treatment_data_logprob(model, processed_dataset.get_intervention_data())
         log_prob_most_likely_dict = get_treatment_data_logprob(
-            model, dataset.get_intervention_data(), most_likely_graph=True
+            model, processed_dataset.get_intervention_data(), most_likely_graph=True
         )
 
         # Evaluate test log-prob only for models that support it
         if "do" not in model.name():
             base_testset_intervention = [
-                IntervetionData(
+                InterventionData(
                     intervention_idxs=np.array([]), intervention_values=np.array([]), test_data=test_data.astype(float)
                 )
             ]
@@ -394,8 +428,8 @@ def eval_treatment_effects(
     if metrics_logger is not None:
         # Log metrics to AzureML
 
-        if "all columns" in metric_dict.keys() and "ATE RMSE" in metric_dict["all columns"].keys():
-            metrics_logger.log_value(base_name + "_rmse", metric_dict["all columns"]["ATE RMSE"], True)
+        if "all interventions" in metric_dict.keys() and "ATE RMSE" in metric_dict["all interventions"].keys():
+            metrics_logger.log_value(base_name + "_rmse", metric_dict["all interventions"]["ATE RMSE"], True)
 
         if "all interventions" in metric_dict.keys() and "log prob mean" in metric_dict["all interventions"].keys():
             metrics_logger.log_value(

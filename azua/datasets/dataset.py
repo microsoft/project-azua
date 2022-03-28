@@ -1,14 +1,14 @@
-import numpy as np
 import os
-from scipy.sparse import csr_matrix, issparse
-from typing import cast, Optional, Tuple, Dict, Any, Union, List
 import warnings
+from typing import cast, Optional, Tuple, Dict, Any, Union, List
 
+import numpy as np
+from scipy.sparse import csr_matrix, issparse
+from torch_geometric.data import Data
+
+from .intervention_data import InterventionData
 from ..datasets.variables import Variables
 from ..utils.io_utils import save_json
-from .intervention_data import IntervetionData
-
-from torch_geometric.data import Data
 
 T = Union[csr_matrix, np.ndarray]
 
@@ -156,7 +156,13 @@ class Dataset(BaseDataset):
             data_split=self._data_split,
         )
 
-    def to_causal(self, adjacency_data: Optional[np.ndarray], intervention_data: Optional[List[IntervetionData]]):
+    def to_causal(
+        self,
+        adjacency_data: Optional[np.ndarray],
+        subgraph_data: Optional[np.ndarray],
+        intervention_data: Optional[List[InterventionData]],
+        counterfactual_data: Optional[List[InterventionData]] = None,
+    ):
         """
         Return the dag version of this dataset.
         """
@@ -164,7 +170,9 @@ class Dataset(BaseDataset):
             train_data=self._train_data,
             train_mask=self._train_mask,
             adjacency_data=adjacency_data,
+            subgraph_data=subgraph_data,
             intervention_data=intervention_data,
+            counterfactual_data=counterfactual_data,
             val_data=self._val_data,
             val_mask=self._val_mask,
             test_data=self._test_data,
@@ -176,8 +184,9 @@ class Dataset(BaseDataset):
     def to_temporal(
         self,
         adjacency_data: Optional[np.ndarray],
-        intervention_data: Optional[List[IntervetionData]],
+        intervention_data: Optional[List[InterventionData]],
         transition_matrix: Optional[np.ndarray],
+        counterfactual_data: Optional[List[InterventionData]],
     ):
         """
         Return the dag version of this dataset.
@@ -188,6 +197,7 @@ class Dataset(BaseDataset):
             transition_matrix=transition_matrix,
             adjacency_data=adjacency_data,
             intervention_data=intervention_data,
+            counterfactual_data=counterfactual_data,
             val_data=self._val_data,
             val_mask=self._val_mask,
             test_data=self._test_data,
@@ -195,6 +205,11 @@ class Dataset(BaseDataset):
             variables=self._variables,
             data_split=self._data_split,
         )
+
+    @property
+    def train_data_and_mask(self) -> Tuple[np.ndarray, np.ndarray]:
+        # Add to avoid inconsistent type mypy error
+        return self._train_data, self._train_mask
 
 
 class SparseDataset(BaseDataset):
@@ -214,6 +229,13 @@ class SparseDataset(BaseDataset):
         data_split: Optional[Dict[str, Any]] = None,
     ) -> None:
         super().__init__(train_data, train_mask, val_data, val_mask, test_data, test_mask, variables, data_split)
+        # Declare types to avoid mypy error
+        self._val_data: Optional[csr_matrix]
+        self._val_mask: Optional[csr_matrix]
+        self._test_data: Optional[csr_matrix]
+        self._test_mask: Optional[csr_matrix]
+        self._train_data: csr_matrix
+        self._train_mask: csr_matrix
 
     def to_dense(self) -> Dataset:
         """
@@ -290,7 +312,9 @@ class CausalDataset(Dataset):
         train_data: np.ndarray,
         train_mask: np.ndarray,
         adjacency_data: Optional[np.ndarray],
-        intervention_data: Optional[List[IntervetionData]],
+        subgraph_data: Optional[np.ndarray],
+        intervention_data: Optional[List[InterventionData]],
+        counterfactual_data: Optional[List[InterventionData]],
         val_data: Optional[np.ndarray] = None,
         val_mask: Optional[np.ndarray] = None,
         test_data: Optional[np.ndarray] = None,
@@ -300,8 +324,10 @@ class CausalDataset(Dataset):
     ) -> None:
         super().__init__(train_data, train_mask, val_data, val_mask, test_data, test_mask, variables, data_split)
 
+        self._counterfactual_data = counterfactual_data
         self._intervention_data = intervention_data
         self._adjacency_data = adjacency_data
+        self._subgraph_data = subgraph_data
 
     def get_adjacency_data_matrix(self) -> np.ndarray:
         """
@@ -311,13 +337,29 @@ class CausalDataset(Dataset):
             raise TypeError("Adjacency matrix is None. No adjacency matrix has been loaded.")
         return self._adjacency_data
 
-    def get_intervention_data(self) -> List[IntervetionData]:
+    def get_known_subgraph_mask_matrix(self) -> np.ndarray:
+        """
+        Return the np.ndarray dag mask matrix.
+        """
+        if self._subgraph_data is None:
+            raise TypeError("Adjacency matrix is None. No adjacency matrix has been loaded.")
+        return self._subgraph_data
+
+    def get_intervention_data(self) -> List[InterventionData]:
         """
         Return the list of interventions and samples from intervened distributions
         """
         if self._intervention_data is None:
             raise TypeError("Intervention data is None. No intervention data has been loaded.")
         return self._intervention_data
+
+    def get_counterfactual_data(self) -> List[InterventionData]:
+        """
+        Return the list of interventions and samples for the counterfactual data
+        """
+        if self._counterfactual_data is None:
+            raise TypeError("Counterfactual data is None. No counterfactual data has been loaded.")
+        return self._counterfactual_data
 
 
 class TemporalDataset(CausalDataset):
@@ -327,7 +369,8 @@ class TemporalDataset(CausalDataset):
         train_mask: np.ndarray,
         transition_matrix: Optional[np.ndarray],
         adjacency_data: Optional[np.ndarray],
-        intervention_data: Optional[List[IntervetionData]],
+        intervention_data: Optional[List[InterventionData]],
+        counterfactual_data: Optional[List[InterventionData]],
         val_data: Optional[np.ndarray] = None,
         val_mask: Optional[np.ndarray] = None,
         test_data: Optional[np.ndarray] = None,
@@ -339,6 +382,7 @@ class TemporalDataset(CausalDataset):
             train_data, train_mask, val_data, val_mask, test_data, test_mask, variables, data_split
         )
 
+        self._counterfactual_data = counterfactual_data
         self._intervention_data = intervention_data
         self._adjacency_data = adjacency_data
         self._transition_matrix = transition_matrix
