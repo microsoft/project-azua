@@ -35,7 +35,7 @@ class SparseCSVDatasetLoader(DatasetLoader):
         **kwargs,
     ) -> SparseDataset:
         """
-        Load the data from memory and make the train/val/test split to instantiate a dataset.
+        Load the data from disk and make the train/val/test split to instantiate a dataset.
         The data is split deterministically given the random state. If the given random state is a pair of integers,
         the first is used to extract test set and the second is used to extract the validation set from the remaining data.
         If only a single integer is given as random state it is used for both.
@@ -105,7 +105,7 @@ class SparseCSVDatasetLoader(DatasetLoader):
         self, max_num_rows: Optional[int] = None, negative_sample: bool = False, split_type: str = "rows", **kwargs
     ) -> SparseDataset:
         """
-        Load the data from memory and use the predefined train/val/test split to instantiate a dataset.
+        Load the data from disk and use the predefined train/val/test split to instantiate a dataset.
         Args:
             max_num_rows: Maximum number of rows to include when reading data files.
             negative_sample: Whether to perform negative sampling after loading the dataset. Negative sampling requires

@@ -25,7 +25,7 @@ from dowhy.causal_identifier import CausalIdentifier
 from sklearn.mixture import GaussianMixture
 from scipy.stats import multivariate_normal
 
-from azua.models.models_factory import create_model
+from ..models.models_factory import create_model
 
 T = TypeVar("T", bound="DoWhy")
 
@@ -55,6 +55,7 @@ class DoWhy(Model, IModelForInterventions):
         adj_matrix_samples: Optional[List[np.ndarray]] = None,
         adj_matrix_sample_weights: Optional[np.ndarray] = None,
         random_seed: int = 0,
+        parallel_n_jobs: int = -1,
     ):
         # TODO: implement methods for binary treatment settings
         """
@@ -80,6 +81,7 @@ class DoWhy(Model, IModelForInterventions):
             adj_matrix_samples: list of samples from adjacency matrix posterior
             adj_matrix_sample_weights: weight for samples of adjacency matrix posterior. If unspecified, uniform weighing (1/Nsamples) will be used
             random_seed: used determine convergence of non-linear models that rely on non-convex optimisation and can give different results across seeds
+            parallel_n_jobs: number of parallel jobs to use when running DoWhy. Set to 1 to disable parallelism. Default is -1, which uses as many threads as there are CPUs.
         """
         super().__init__(model_id, variables, save_dir)
 
@@ -128,6 +130,7 @@ class DoWhy(Model, IModelForInterventions):
         self._bootstrap_samples = bootstrap_samples
         self._train_data = train_data
         self._random_seed = random_seed
+        self.parallel_n_jobs = parallel_n_jobs
 
         assert (
             causal_identifier_method in CausalIdentifier.METHOD_NAMES
@@ -420,7 +423,7 @@ class DoWhy(Model, IModelForInterventions):
         seed_multiplier = len(effect_idxs) if effect_idxs is not None else len(self.variables)
         inner_seeds = np.random.randint(2 ** 20, size=seed_multiplier * len(graphs))
 
-        outputs = Parallel(n_jobs=-1, backend="multiprocessing")(
+        outputs = Parallel(n_jobs=self.parallel_n_jobs, backend="multiprocessing")(
             delayed(self._dowhy_cate)(
                 graph,
                 train_df,

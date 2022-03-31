@@ -48,37 +48,8 @@ For Microsoft wise causal ML research vision, check out our [openning talk](http
 ## 1. Core functionalities
 
 Azua has there core functionalities as shown below depends on the type of decision maksing tasks.
-:::mermaid
-flowchart TD;
-    classDef blue fill:#488AC7;
-    A[Decision Making Task];
-    A-->P[Prediction Decision];
 
-    subgraph BNQ
-        direction TB
-        DG[Train Deep Generative Models];
-        MVP[Missing Value Prediction];
-        BNQ_N[Best Next Question/Feature];
-        DG-->MVP-->BNQ_N;
-        PData(Partial Data):::blue-->DG;
-        MVP-->FData(Imputed Data):::blue
-        BNQ_N-->RBNQ(Question/Feature ID):::blue;
-    end
-    P-->BNQ
-
-    A-->I[Intervention Decision];
-
-    subgraph ECI
-        direction TB
-        C1[Causal Discovery] -->C2[Causal Identification];
-        C2-->C3[Causal Inference];
-        Data(Exisiting Data):::blue;
-        C1-->G(Graph):::blue;
-        C3-->TE(TE esimtation):::blue;
-        Data-->C1;
-    end
-    I-->ECI
-:::
+![AZUA](Azua%20Image.jpg)
 
 ### 1.1. Missing Value Prediction (MVP)
 
@@ -312,12 +283,9 @@ We procide F1 score for adjacency and orientation to measure the causal discover
     </tbody>
 </table>
 
-### Causal inference (CI)
 
---
-
-### End-to-End causal infernce (E2E)
---
+### End-to-End Causal Inference (ECI)
+You can find results for causal discovery (CD), causal inference (CI) and end-to-end causal inference (ECI) using our DECI model and baseline models in the [DECI results notebook](research_experiments/DECI/box_plots.ipynb). See our [dedicated DECI README](doc/README_DECI.md) for instructions to reproduce all results.
 
 ## 5. Model details
 

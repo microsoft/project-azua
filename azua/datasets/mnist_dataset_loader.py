@@ -86,7 +86,7 @@ class MNISTDatasetLoader(DatasetLoader):
         **kwargs,
     ) -> Dataset:
         """
-        Load the data from memory and use the predefined train/test split to instantiate a dataset.
+        Load the data from disk and use the predefined train/test split to instantiate a dataset.
         Args:
             max_num_rows: Maximum number of rows to include when reading data files.
             use_targets: Whether we include the targets (i.e., class) or not.

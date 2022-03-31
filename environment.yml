@@ -54,7 +54,6 @@ dependencies:
     - git+https://github.com/microsoft/dowhy.git@8b2cf6a
     - econml==0.12.0
     - networkx[default]==2.6.3
-    - lingam
     - igraph==0.9.9
     # Required by mypy for Library stubs
     - types-PyYAML

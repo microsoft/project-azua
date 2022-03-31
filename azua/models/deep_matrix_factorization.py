@@ -252,7 +252,10 @@ class DeepMatrixFactorization(TorchModel):
             )
 
             loss_val, y_val, output_val = self._get_loss(data_val, *next(iter(dataloader_val)), loss_function, False)  # type: ignore
-
+            if output_val.is_cuda:
+                output_val = output_val.cpu().data.numpy()
+            else:
+                output_val = output_val.data.numpy()
             y_hat_val = np.zeros(y_val.shape)
             y_hat_val[np.where(output_val > 0.5)] = 1.0
             y_hat_val[np.where(output_val < 0.5)] = 0.0
