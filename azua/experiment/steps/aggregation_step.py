@@ -13,8 +13,8 @@ import copy
 import pandas as pd
 
 from ...utils.active_learning import plot_and_save_rmse_curves
-from ...utils.io_utils import flatten_keys, unflatten_keys, save_json
-from ...utils.io_utils import read_json, read_txt
+from ...utils.io_utils import flatten_keys, read_json_as, unflatten_keys, save_json
+from ...utils.io_utils import read_txt
 from ...utils.run_utils import find_all_model_dirs
 from ...datasets.variables import Variables
 from ..imetrics_logger import IMetricsLogger
@@ -193,7 +193,7 @@ def get_configs_and_results(model_dir: str) -> dict:
         if len(fnames) > 1:
             raise ValueError
         elif fnames:
-            configs_and_results.update({k: read_json(fnames[0])})
+            configs_and_results.update({k: read_json_as(fnames[0], dict)})
         elif k in ["dataset_config", "model_config"]:
             raise FileNotFoundError
     configs_and_results.update({"model_type": read_txt(os.path.join(model_dir, "model_type.txt"))})
@@ -203,6 +203,6 @@ def get_configs_and_results(model_dir: str) -> dict:
         if not var.query:
             filename = os.path.join(model_dir, "active_learning", f"{var.name}.json")
             if os.path.exists(filename):
-                configs_and_results["active_learning"].update(read_json(filename))
+                configs_and_results["active_learning"].update(read_json_as(filename, dict))
 
     return configs_and_results

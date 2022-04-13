@@ -6,8 +6,8 @@ import jax.numpy as jnp
 import jax.nn as nn
 from typing import Callable, Optional, List
 
-from utils import extract_observations, make_coding_tensors, finalise
-from pyro_utils import generate_dataset, plot_conditioning_and_interventions, layer, layerm
+from azua.research_experiments.DECI.data_generation.csuite.utils import extract_observations, make_coding_tensors, finalise, to_counterfactual_dict_format
+from azua.research_experiments.DECI.data_generation.csuite.pyro_utils import generate_dataset, plot_conditioning_and_interventions, layer, layerm
 
 
 def simulate_data(
@@ -16,12 +16,15 @@ def simulate_data(
     foldername: str,
     numpyro_model: Callable,
     adjacency_matrix: np.array,
-    intervention_idx: List[int],
-    intervention_value: List[int],
+    intervention_idx: int,
+    intervention_value: int,
     reference_value: List[int],
     target_idxs: List[int],
     condition_idx: Optional[List[int]] = None,
     condition_value: Optional[List[int]] = None,
+    counterfactual_intervention_idx: Optional[List[int]] = None,
+    counterfactual_reference_value: Optional[int] = None,
+    counterfactual_intervention_value: Optional[int] = None,
     plot_discrete: bool = False,
 ):
     """
@@ -37,8 +40,10 @@ def simulate_data(
         intervention_value
         reference_value
         target_idxs
-        condition_idx=None, if non is specified, no conditional data will be generated and dataset will only allow ATE evaluation
-        condition_value=None, if non is specified, no conditional data will be generated and dataset will only allow ATE evaluation
+        condition_idx=None: if None is specified, no conditional data will be generated and dataset will not allow CATE evaluation
+        condition_value=None: if None is specified, no conditional data will be generated and dataset will not allow CATE evaluation
+        counterfactual_idx=None: if None is specified, no conditional data will be generated and dataset will not allow ITE evaluation
+        counterfactual_value=None: if None is specified, no conditional data will be generated and dataset will not allow ITE evaluation
         plot_discrete
     Returns:
         None
@@ -54,26 +59,27 @@ def simulate_data(
 
     if condition_idx is not None and condition_value is not None:
         condition_dict = {f"x{condition_idx}": condition_value}
-        samples_base, [samples_int, samples_ref], [samples_int_cond, samples_ref_cond] = generate_dataset(
-            numpyro_model,
-            n_samples_train,
-            n_samples_per_test,
-            thinning,
-            num_warmup,
-            [intervention_dict, reference_dict],
-            condition_dict=condition_dict,
-        )
+        
     else:
         condition_dict = None
-        samples_base, [samples_int, samples_ref] = generate_dataset(
-            numpyro_model,
-            n_samples_train,
-            n_samples_per_test,
-            thinning,
-            num_warmup,
-            [intervention_dict, reference_dict],
-        )
-        samples_int_cond = samples_ref_cond = None
+        
+    if counterfactual_intervention_idx is not None and counterfactual_reference_value is not None and counterfactual_intervention_value is not None:
+        counterfactual_intervention_dict = {f"x{counterfactual_intervention_idx}": counterfactual_intervention_value}
+        counterfactual_reference_dict = {f"x{counterfactual_intervention_idx}": counterfactual_reference_value}
+        counterfactual_dicts = [counterfactual_intervention_dict, counterfactual_reference_dict]
+        
+    else:
+        counterfactual_dicts = None
+                    
+    samples_base, [samples_int, samples_ref], [samples_int_cond, samples_ref_cond], [counterfactual_int, counterfactual_ref] = generate_dataset(
+        numpyro_model,
+        n_samples_train,
+        n_samples_per_test,
+        thinning,
+        num_warmup,
+        [intervention_dict, reference_dict],
+        condition_dict=condition_dict,
+        counterfactual_dicts=counterfactual_dicts)
 
     plot_conditioning_and_interventions(
         samples_base,
@@ -168,6 +174,21 @@ def simulate_data(
             target_idxs=target_idxs,
         )
     )
+    
+    if counterfactual_dicts is not None:
+        cf_intervention_samples = extract_observations(counterfactual_int)
+        cf_reference_samples = extract_observations(counterfactual_ref)
+        
+        counterfactual_sample_dict = to_counterfactual_dict_format(
+            original_samples=train_data,
+            intervention_samples=cf_intervention_samples,
+            reference_samples=cf_reference_samples,
+            do_idx=counterfactual_intervention_idx,
+            do_value=counterfactual_intervention_value,
+            reference_value=counterfactual_reference_value)
+
+    else:
+        counterfactual_sample_dict = None
 
     if condition_dict is not None:
         intervention_data.append(extract_observations(samples_int_cond))
@@ -198,7 +219,7 @@ def simulate_data(
             )
         )
 
-    finalise(foldername, train_data, adjacency_matrix, intervention_data, metadata)
+    finalise(foldername, train_data, adjacency_matrix, intervention_data, metadata, counterfactual_sample_dict)
 
 
 def two_node_lin(n_samples_train, n_samples_per_test, datadir, noise_dist, name):
@@ -243,6 +264,9 @@ def two_node_lin(n_samples_train, n_samples_per_test, datadir, noise_dist, name)
         intervention_value,
         reference_value,
         target_idxs,
+        counterfactual_intervention_idx=intervention_idx,
+        counterfactual_intervention_value=intervention_value,
+        counterfactual_reference_value=reference_value
     )
 
 
@@ -291,6 +315,9 @@ def collider_lin(n_samples_train, n_samples_per_test, datadir, noise_dist):
         intervention_value,
         reference_value,
         target_idxs,
+        counterfactual_intervention_idx=intervention_idx,
+        counterfactual_intervention_value=intervention_value,
+        counterfactual_reference_value=reference_value
     )
 
 
@@ -340,6 +367,9 @@ def chain_lin(n_samples_train, n_samples_per_test, datadir, noise_dist):
         intervention_value,
         reference_value,
         target_idxs,
+        counterfactual_intervention_idx=intervention_idx,
+        counterfactual_intervention_value=intervention_value,
+        counterfactual_reference_value=reference_value
     )
 
 
@@ -389,6 +419,9 @@ def fork_lin(n_samples_train, n_samples_per_test, datadir, noise_dist):
         intervention_value,
         reference_value,
         target_idxs,
+        counterfactual_intervention_idx=intervention_idx,
+        counterfactual_intervention_value=intervention_value,
+        counterfactual_reference_value=reference_value
     )
 
 
@@ -433,6 +466,9 @@ def two_node_nonlinear_gauss(n_samples_train, n_samples_per_test, datadir):
         intervention_value,
         reference_value,
         target_idxs,
+        counterfactual_intervention_idx=intervention_idx,
+        counterfactual_intervention_value=intervention_value,
+        counterfactual_reference_value=reference_value
     )
 
 
@@ -474,6 +510,9 @@ def nonlin_simpson(n_samples, datadir):
         target_idxs,
         condition_idx=condition_idx,
         condition_value=condition_value,
+        counterfactual_intervention_idx=intervention_idx,
+        counterfactual_intervention_value=intervention_value,
+        counterfactual_reference_value=reference_value
     )
 
 
@@ -513,7 +552,7 @@ def symprod_simpson(n_samples, datadir):
         reference_value,
         target_idxs,
         condition_idx=condition_idx,
-        condition_value=condition_value,
+        condition_value=condition_value
     )
 
 
@@ -598,8 +637,7 @@ def large_backdoor(n_samples, datadir, binary_treatment=False):
         reference_value,
         target_idxs,
         condition_idx=condition_idx,
-        condition_value=condition_value,
-    )
+        condition_value=condition_value)
 
 
 def weak_arrows(n_samples, datadir, binary_treatment=False):
@@ -1024,7 +1062,7 @@ def lin_gauss(n_samples, datadir):
     adjacency_matrix[7, 4] = 1
 
     intervention_idx = 2
-    intervection_value = 2.0
+    intervention_value = 2.0
     reference_value = 0.0
     condition_idx = None
     condition_value = None
@@ -1054,11 +1092,14 @@ def lin_gauss(n_samples, datadir):
         linGauss_model,
         adjacency_matrix,
         intervention_idx,
-        intervection_value,
+        intervention_value,
         reference_value,
         target_idxs,
         condition_idx=condition_idx,
         condition_value=condition_value,
+        counterfactual_intervention_idx=intervention_idx,
+        counterfactual_intervention_value=intervention_value,
+        counterfactual_reference_value=reference_value
     )
 
 
@@ -1079,7 +1120,7 @@ def lin_gaussish(n_samples, datadir):
     adjacency_matrix[7, 4] = 1
 
     intervention_idx = 2
-    intervection_value = 2.0
+    intervention_value = 2.0
     reference_value = 0.0
     condition_idx = None
     condition_value = None
@@ -1109,11 +1150,14 @@ def lin_gaussish(n_samples, datadir):
         linGaussish_model,
         adjacency_matrix,
         intervention_idx,
-        intervection_value,
+        intervention_value,
         reference_value,
         target_idxs,
         condition_idx=condition_idx,
         condition_value=condition_value,
+        counterfactual_intervention_idx=intervention_idx,
+        counterfactual_intervention_value=intervention_value,
+        counterfactual_reference_value=reference_value
     )
 
 

@@ -2,6 +2,7 @@
 Helper functions.
 """
 from contextlib import contextmanager
+from typing import Dict, List, TypeVar
 
 import numpy as np
 import torch
@@ -9,6 +10,8 @@ import torch
 import os
 import sys
 import git
+
+T = TypeVar("T")
 
 
 @contextmanager
@@ -76,3 +79,21 @@ def write_git_info(directory: str, exist_ok: bool = False):
             # Happens in PR build, detached head state
             pass
         f.write("Git diff:\n" + str(diff))
+
+
+def convert_dict_of_lists_to_ndarray(dict_: Dict[T, List]) -> Dict[T, np.ndarray]:
+    """
+    Converts all list values in `dict_` to ndarrays.
+    If no value is of type list, the passed dictionary is returned.
+    """
+    return {k:np.array(v) if isinstance(v, list) else v
+            for k, v in dict_.items()}
+
+
+def convert_dict_of_ndarray_to_lists(dict_):
+    """
+    Converts all ndarray values in `dict_` to (possibly nested) lists.
+    If no value is of type ndarray, the passed dictionary is returned.
+    """
+    return {k:v.tolist() if isinstance(v, np.ndarray) else v
+            for k, v in dict_.items()}

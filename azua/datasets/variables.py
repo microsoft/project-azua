@@ -11,7 +11,7 @@ import numpy as np
 import torch
 from scipy.sparse import csr_matrix, issparse
 
-from ..utils.io_utils import read_json, save_json
+from ..utils.io_utils import read_json_as, save_json
 
 
 class Variables:
@@ -164,7 +164,7 @@ class Variables:
 
     @classmethod
     def create_from_json(cls, path: str) -> Variables:
-        return cls.create_from_dict(read_json(path))
+        return cls.create_from_dict(read_json_as(path, dict))
 
     @classmethod
     def create_from_dict(cls, variables_dict: Dict[str, List[Any]]) -> Variables:

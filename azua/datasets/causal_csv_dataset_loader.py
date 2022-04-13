@@ -1,8 +1,10 @@
 import os
-import json
 import numpy as np
 
 import logging
+
+from ..utils.helper_functions import convert_dict_of_lists_to_ndarray
+from ..utils.io_utils import read_json_as
 from ..datasets.csv_dataset_loader import CSVDatasetLoader
 from ..datasets.dataset import CausalDataset, InterventionData
 from typing import List, Optional, Tuple, Union, TypedDict
@@ -140,28 +142,28 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
 
         if os.path.exists(intervention_data_path + ".csv"):
             logger.info("Intervention data csv found.")
-            raw_intervention_data, mask = self.read_csv_from_file(
+            raw_intervention_csv_data, mask = self.read_csv_from_file(
                 intervention_data_path + ".csv", max_num_rows=max_num_rows
             )
             intervention_data = self._parse_csv_intervention_data(
-                raw_intervention_data, mask, is_counterfactual=is_counterfactual
+                raw_intervention_csv_data, mask, is_counterfactual=is_counterfactual
             )
         elif os.path.exists(intervention_data_path + ".npy"):
             logger.info("Intervention data npy found.")
 
-            raw_intervention_data = np.load(intervention_data_path + ".npy", allow_pickle=True)
+            raw_intervention_npy_data = np.load(intervention_data_path + ".npy", allow_pickle=True)
 
             intervention_data = self._parse_intervention_dict_list(
-                raw_intervention_data, is_counterfactual=is_counterfactual
+                raw_intervention_npy_data, is_counterfactual=is_counterfactual
             )
         elif os.path.exists(intervention_data_path + ".json"):
             logger.info("Intervention data json found.")
 
-            with open(intervention_data_path + ".json", "r") as f:
-                raw_intervention_data = json.load(f)
+            raw_intervention_json_data_lists = read_json_as(intervention_data_path + ".json", list)
+            raw_intervention_json_data_ndarrays = [convert_dict_of_lists_to_ndarray(d) for d in raw_intervention_json_data_lists]
 
             intervention_data = self._parse_intervention_dict_list(
-                raw_intervention_data, is_counterfactual=is_counterfactual
+                raw_intervention_json_data_ndarrays, is_counterfactual=is_counterfactual
             )
         else:
             logger.info("Intervention data not found.")
@@ -199,7 +201,14 @@ class CausalCSVDatasetLoader(CSVDatasetLoader):
 
         for intervention_dict in raw_intervention_data:
             conditioning_values, conditioning_mask = cls._process_data(intervention_dict["conditioning"])
-            conditioning_idxs = np.where(conditioning_mask == 1)[0]
+            
+            # Conditioning arrays in counterfactual dicts contain all base samples
+            # so we set conditioning_idxs to all column indices
+            if is_counterfactual: 
+                conditioning_idxs = np.array(range(conditioning_mask.shape[1]))
+                
+            else:
+                conditioning_idxs = np.where(conditioning_mask == 1)[0]
 
             intervention_values, intervention_mask = cls._process_data(intervention_dict["intervention"])
             intervention_samples = intervention_dict["intervention_samples"]

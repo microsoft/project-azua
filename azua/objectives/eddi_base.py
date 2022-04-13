@@ -8,7 +8,7 @@ from scipy.sparse import csr_matrix, issparse
 
 from ..models.imodel import IModelForObjective
 from ..objectives.objective import Objective
-from ..utils.io_utils import read_json, save_json
+from ..utils.io_utils import read_json_as, save_json
 from ..utils.training_objectives import kl_divergence
 from ..utils.torch_utils import create_dataloader
 from ..utils.data_mask_utils import add_to_data, add_to_mask, to_tensors
@@ -107,8 +107,8 @@ class EDDIBaseObjective(Objective):
         if self._use_vamp_prior:
             # For completely unobserved data, use precomputed info gain per variable
             vamp_rows = np.where(obs_mask.sum(axis=1) == 0)
-            vamp_prior_info_dict = read_json(os.path.join(self._model.save_dir, self._vamp_prior_info_gain_path))
-            vamp_prior_info_array = np.array(pd.DataFrame(vamp_prior_info_dict, index=[0]))[0]
+            vamp_prior_info_dicts = read_json_as(os.path.join(self._model.save_dir, self._vamp_prior_info_gain_path), list)
+            vamp_prior_info_array = np.array(pd.DataFrame(vamp_prior_info_dicts, index=[0]))[0]
             rewards[vamp_rows] = vamp_prior_info_array
 
             not_vamp_rows = np.nonzero(obs_mask.sum(axis=1))[0]
@@ -135,9 +135,9 @@ class EDDIBaseObjective(Objective):
             )
 
             device = self._model.get_device()
-            for rows, data, obs_mask, data_mask in dataloader:
+            for rows, data_, obs_mask_, data_mask_ in dataloader:
                 info_gains = self._information_gain(
-                    data.to(device), data_mask.to(device), obs_mask.to(device), as_array=True,
+                    data_.to(device), data_mask_.to(device), obs_mask_.to(device), as_array=True,
                 )
                 rewards[rows.to(torch.long).cpu().numpy()] = info_gains
 
@@ -235,7 +235,7 @@ class EDDIBaseObjective(Objective):
             rewards = self._remove_rewards_for_observed_groups(obs_mask, rewards)
 
             if not as_array:
-                rewards = [{idx: float(val) for idx, val in enumerate(row)} for row in rewards]
+                return [{idx: float(val) for idx, val in enumerate(row)} for row in rewards]
         return rewards
 
     def _remove_rewards_for_observed_groups(self, obs_mask: torch.Tensor, rewards: np.ndarray):

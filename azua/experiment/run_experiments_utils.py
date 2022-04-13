@@ -1,6 +1,6 @@
 import os
 from typing import Any, Dict
-from ..utils.io_utils import read_json
+from ..utils.io_utils import read_json_as
 
 
 def build_model_config_dict(models_dir: str) -> Dict[str, Any]:
@@ -14,7 +14,7 @@ def build_model_config_dict(models_dir: str) -> Dict[str, Any]:
         if not os.path.exists(config_path):
             continue
         model_id = os.path.basename(model_dir)
-        model_config = read_json(config_path)
+        model_config = read_json_as(config_path, dict)
         model_config_dict[model_id] = model_config
 
     return model_config_dict

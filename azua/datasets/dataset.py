@@ -187,6 +187,9 @@ class Dataset(BaseDataset):
         intervention_data: Optional[List[InterventionData]],
         transition_matrix: Optional[np.ndarray],
         counterfactual_data: Optional[List[InterventionData]],
+        train_segmentation: Optional[List[Tuple[int, int]]] = None,
+        test_segmentation: Optional[List[Tuple[int, int]]] = None,
+        val_segmentation: Optional[List[Tuple[int, int]]] = None,
     ):
         """
         Return the dag version of this dataset.
@@ -204,6 +207,9 @@ class Dataset(BaseDataset):
             test_mask=self._test_mask,
             variables=self._variables,
             data_split=self._data_split,
+            train_segmentation=train_segmentation,
+            test_segmentation=test_segmentation,
+            val_segmentation=val_segmentation,
         )
 
     @property
@@ -377,6 +383,9 @@ class TemporalDataset(CausalDataset):
         test_mask: Optional[np.ndarray] = None,
         variables: Optional[Variables] = None,
         data_split: Optional[Dict[str, Any]] = None,
+        train_segmentation: Optional[List[Tuple[int, int]]] = None,
+        test_segmentation: Optional[List[Tuple[int, int]]] = None,
+        val_segmentation: Optional[List[Tuple[int, int]]] = None,
     ) -> None:
         super(CausalDataset, self).__init__(
             train_data, train_mask, val_data, val_mask, test_data, test_mask, variables, data_split
@@ -386,6 +395,12 @@ class TemporalDataset(CausalDataset):
         self._intervention_data = intervention_data
         self._adjacency_data = adjacency_data
         self._transition_matrix = transition_matrix
+        # _train_segmentation stored as a list of tuples (start, end). For example, if the segmentation is
+        # [(0, 10), (11, 15)], it means the first time series index starts with 0 to 10th row; and the second time series
+        # index  with 11 to 15th row.
+        self._train_segmentation = train_segmentation
+        self._test_segmentation = test_segmentation
+        self._val_segmentation = val_segmentation
 
     def get_transition_matrix(self) -> np.ndarray:
         """

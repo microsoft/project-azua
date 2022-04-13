@@ -114,7 +114,7 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
         # Create EDDI objective to save info gain normalizer (needs to be done after model training).
         # HACK 19676: currently nri-mv doesn't implement the full PVAEBaseModel interface and so can't estimate
         # information gains. Once the full interface is implemented this if statement can be removed.
-        if self.name() not in ["nri", "vicause"]:
+        if self.name() not in ["nri", "visl"]:
             objective = EDDIObjective(self, sample_count=100)
             save_info_gain_normalizer(objective, self)
 

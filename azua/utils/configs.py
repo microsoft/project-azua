@@ -1,7 +1,7 @@
 import itertools
 import os
 
-from ..utils.io_utils import read_json, recursive_update
+from ..utils.io_utils import read_json_as, recursive_update
 from ..utils.exceptions import ModelConfigNotFound
 from typing import Any, Dict, Optional, Tuple
 
@@ -43,10 +43,10 @@ def get_configs(
     default_objective_config_path = os.path.join(default_configs_dir, "defaults", "objective_config.json")
 
     # Load global default configs for model.
-    model_config = read_json(default_model_config_path)
-    dataset_config = read_json(default_dataset_config_path)
-    impute_config = read_json(default_impute_config_path)
-    objective_config = read_json(default_objective_config_path)
+    model_config = read_json_as(default_model_config_path, dict)
+    dataset_config = read_json_as(default_dataset_config_path, dict)
+    impute_config = read_json_as(default_impute_config_path, dict)
+    objective_config = read_json_as(default_objective_config_path, dict)
 
     # Update with dataset-specific, configs if they exist
     if dataset_name is not None:
@@ -90,7 +90,7 @@ def update_dict_from_path(old_dict, new_path):
         old_dict (dict): The input dictionary, possibly updated.
     """
     if new_path is not None and os.path.exists(new_path):
-        new_dict = read_json(new_path)
+        new_dict = read_json_as(new_path, dict)
         old_dict = recursive_update(old_dict, new_dict)
     return old_dict
 

@@ -1,7 +1,7 @@
 from logging import Logger
 import numpy as np
 import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from scipy.sparse import csr_matrix
 
@@ -55,27 +55,29 @@ def run_active_learning_main(
     active_learning_strategies: List[str],
     objective_config: Dict[str, Any],
     impute_config: Dict[str, Any],
-    seed=0,
-    max_steps=None,
-    max_rows=np.inf,
-    users_to_plot=[0],
+    users_to_plot: Iterable[int] = (0,),
+    seed: int = 0,
+    max_steps: int = np.iinfo(np.int64).max,
+    max_rows: int = np.iinfo(np.int64).max,
     metrics_logger: Optional[IMetricsLogger] = None,
 ) -> ActiveLearningResults:
     """
     Args:
-        logger (`logging.Logger`): Instance of logger class to use.
-        model (IModel): model to use.
-        data (numpy array of shape (user_count, variable_count)): Data to run active learning on.
-        mask (numpy array of shape (user_count, variable_count)): 1 is observed, 0 is missing.
-        vamp_prior_data (tuple of numpy arrays): Tuple of (data, mask). Used for vamp prior samples.
-        active_learning_strategies (list of str): List of active learning methods to check.
-        objective_config (dictionary): Dictionary containing config options for creating Objective.
-        seed (int): Random seed to use when running active learning. Defaults to 0.
-        max_steps (int): Maximum number of active learning steps to take (default: inf).
-        max_rows (int): Maximum number of data rows on which to perform active learning.
+        logger: Instance of logger class to use.
+        model: model to use.
+        data (shape (user_count, variable_count)): Data to run active learning on.
+        mask (shape (user_count, variable_count)): 1 is observed, 0 is missing.
+        vamp_prior_data: Tuple of (data, mask). Used for vamp prior samples.
+        active_learning_strategies: List of active learning methods to check.
+        objective_config: Dictionary containing config options for creating Objective.
+        users_to_plot: A list of users to plot data for
+        seed: Random seed to use when running active learning. Defaults to 0.
+        max_steps: Maximum number of active learning steps to take (default: inf).
+        max_rows: Maximum number of data rows on which to perform active learning.
+        metrics_logger: An object to log the metrics (normally for AzureML)
 
     Returns:
-        active_learning_results (ActiveLearningResults): the results of active learning
+        active_learning_results: the results of active learning
     """
     if data.shape[0] > max_rows:
         data = data[0:max_rows]
@@ -160,7 +162,11 @@ def run_active_learning_main(
         if len(imputed_values_mc.shape) > 3:  # If imputed_values_mc includes samples
             for idx in users_to_plot:
                 plot_imputation_violin_plots_active_learning(
-                    imputed_values_mc, model.variables, observations, strategy_dir, user_idx=idx,
+                    imputed_values_mc,
+                    model.variables,
+                    observations,
+                    strategy_dir,
+                    user_idx=idx,
                 )
 
         # Plot info_gain bar plots.

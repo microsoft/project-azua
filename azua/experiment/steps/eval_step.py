@@ -259,7 +259,7 @@ def run_eval_main(
     if (
         len(variables.target_var_idxs) == 0
         and not issparse(train_data)
-        and model.name() not in ["vicause", "deci", "deci_gaussian", "deci_spline"]
+        and model.name() not in ["visl", "deci", "deci_gaussian", "deci_spline"]
         and model.name() not in ["mean_imputing", "mice", "missforest", "zero_imputing"]
     ):
         # If there is no target then we compute additional metrics that are question quality and difficulty.
@@ -273,8 +273,8 @@ def run_eval_main(
         compute_save_additional_metrics(
             test_imputations, train_data, model_for_objective, model.save_dir, objective_config=objective_config,
         )
-    elif model.name() == "vicause":
-        warnings.warn("Question quality and difficulty are not currently implemented for vicause")
+    elif model.name() == "visl":
+        warnings.warn("Question quality and difficulty are not currently implemented for visl")
     elif model.name() in ["deci", "deci_gaussian", "deci_spline"]:
         warnings.warn("Question quality and difficulty are not currently implemented for deci model")
     elif model.name() in ["mean_imputing", "mice", "missforest", "zero_imputing"]:

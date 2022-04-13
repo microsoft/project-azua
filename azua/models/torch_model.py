@@ -11,7 +11,7 @@ import torch
 from ..models.model import Model
 from ..datasets.variables import Variables
 from ..utils.helper_functions import maintain_random_state
-from ..utils.io_utils import read_json, save_json, save_txt
+from ..utils.io_utils import read_json_as, save_json, save_txt
 from ..utils.torch_utils import set_random_seeds, get_torch_device
 from ..models.torch_training_types import LossConfig, LossResults
 from ..utils.exceptions import ONNXNotImplemented
@@ -99,7 +99,7 @@ class TorchModel(Model, torch.nn.Module):
 
         # Load model config.
         model_config_path = os.path.join(save_dir, cls._model_config_path)
-        model_config_dict = read_json(model_config_path)
+        model_config_dict = read_json_as(model_config_path, dict)
         model_config_dict = _set_random_seed_and_remove_from_config(model_config_dict)
 
         # Finally, get a model instance and allow that model to load anything else it needs.

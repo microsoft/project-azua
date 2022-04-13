@@ -46,6 +46,7 @@ def generate_dataset(
     num_warmup: int,
     intervention_dicts: List[dict],
     condition_dict: Optional[List[dict]] = None,
+    counterfactual_dicts: Optional[List[dict]] = None,
     rng_seed: int = 0,
 ):
     """
@@ -56,12 +57,18 @@ def generate_dataset(
         draw_samples_test: how many samples to draw for each interventional distribution
         thinning: HMC chain subsampling factor
         num_warmup: chain warmup steps
-        intervention_dicts: list of dictionaries specifying names of variable to be intervened and their values
+        intervention_dicts: list of dictionaries specifying names of variables to be intervened and their values
         condition_dict:  dictionary specifying names of variable to be conditioned on and their values
+        counterfactual_dicts: list of dictionaries specifying names of variables to be intervened and their values.
+        Performs counterfactual generation if the value passed is not None.
         rng_seed: random seed
     Returns:
-        samples_base, samples_int, samples_ref, samples_int_cond, samples_ref_cond: dictionaries containing indices named after each variable in the numpyro model and as values a list of samples
-        In the case that no conditioning values are inputted, the last two return values are none
+        samples_base,
+        [samples_int, samples_ref],
+        [samples_counterfactual_int, samples_counterfactual_ref],
+        samples_cond: [samples_int_cond, samples_ref_cond]: dictionaries with keys are the variable names in the numpyro model and the values
+        are an array of samples. In the case that `condition_dict` is not passed then the list [samples_int_cond, samples_ref_cond]
+        will be returned as  [None, None], and similarly for `counterfactual_dicts`.
 
     """
     # Start from this source of randomness. We will split keys for subsequent operations.
@@ -92,6 +99,25 @@ def generate_dataset(
             samples_int[var] = np.ones(draw_samples_per_test) * intervention_dict[var]
 
         intervention_samples.append(samples_int)
+        
+    # Counterfactual
+    if counterfactual_dicts is not None:
+        print("Counterfactual")
+        counterfactual_samples = []
+        for counterfactual_dict in counterfactual_dicts:
+            intervened_model = do(base_model, data=counterfactual_dict)
+            # Counterfactual generation requires using same seed for each intervention
+            seeded_int_model = seed(expand_model(intervened_model, draw_samples_per_test, "plate"), obs_seed)
+            int_model_trace = trace(seeded_int_model).get_trace()
+            samples_int = {k: v["value"] for k, v in int_model_trace.items()}
+            samples_int.pop("plate")
+
+            for var in counterfactual_dict.keys():
+                samples_int[var] = np.ones(draw_samples_per_test) * counterfactual_dict[var]
+
+            counterfactual_samples.append(samples_int)
+    else:
+        counterfactual_samples = [None, None]
 
     # Conditional
     if condition_dict is not None:
@@ -120,12 +146,10 @@ def generate_dataset(
                 samples_int_cond[var] = np.ones(samples_int[var].shape) * condition_dict[var]
 
             cond_intervention_samples.append(samples_int_cond)
-
-        return samples_base, intervention_samples, cond_intervention_samples
-
     else:
+        cond_intervention_samples = [None, None]
 
-        return samples_base, intervention_samples
+    return samples_base, intervention_samples, cond_intervention_samples, counterfactual_samples
 
 
 def plot_conditioning_and_interventions(

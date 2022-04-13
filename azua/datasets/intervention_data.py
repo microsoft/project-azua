@@ -14,8 +14,8 @@ class InterventionData(NamedTuple):
         intervention_idxs: np.ndarray. 1d array containing the indices of each variable on which an intervention is made.
         intervention_values: np.ndarray. 1d array containing the values being assigned to the intervened variables.
         intervention_reference: np.ndarray 1d array containing reference values for interventions. 
-        test_data: np.ndarray. Samples from intervened distribution
-        test_data: np.ndarray. Samples from intervened distribution with reference intervention 
+        test_data: np.ndarray. Samples from intervened distribution.
+        reference_data: np.ndarray. Samples from intervened distribution with reference intervention.
     """
 
     intervention_idxs: np.ndarray

@@ -2,10 +2,12 @@ from functools import partial
 import json
 import os
 import pickle
-from typing import Any, Callable, Dict, TextIO
+from typing import Any, Callable, Dict, TextIO, TypeVar, Type
+
+T = TypeVar("T")
 
 
-def read(path: str, expected_ext: str, read_func: Callable[[TextIO], Any]) -> Any:
+def read(path: str, expected_ext: str, read_func: Callable[[TextIO], T]) -> T:
     if not os.path.isfile(path):
         raise IOError("File %s does not exist." % path)
 
@@ -18,7 +20,7 @@ def read(path: str, expected_ext: str, read_func: Callable[[TextIO], Any]) -> An
     return data
 
 
-def save(data: Any, path: str, expected_ext: str, write_func: Callable[[Any, TextIO], None]) -> None:
+def save(data: T, path: str, expected_ext: str, write_func: Callable[[T, TextIO], None]) -> None:
     _, ext = os.path.splitext(path)
     if ext != expected_ext:
         raise IOError("Expected extension for file %s to be a %s. Extension is %s." % (path, expected_ext, ext))
@@ -27,11 +29,16 @@ def save(data: Any, path: str, expected_ext: str, write_func: Callable[[Any, Tex
         write_func(data, file)
 
 
-def read_json(path: str) -> Dict[Any, Any]:
-    if path is None:
-        return {}
-
-    return read(path, ".json", json.load)
+def read_json_as(path: str, t: Type[T]) -> T:
+    """
+    Reads a json file from disk enabling specification of return type for type checking.
+    Args:
+        path (str): Path to json file
+        t (type): Expected return type of python object.
+    """    
+    data = read(path, ".json", json.load)
+    assert isinstance(data, t)
+    return data
 
 
 def save_json(data: Any, path: str) -> None:

@@ -20,7 +20,7 @@ from ..models.model import Model
 from ..datasets.variables import Variables
 from ..datasets.dataset import Dataset
 from ..utils.torch_utils import get_torch_device, set_random_seeds
-from ..utils.io_utils import read_json, save_json, save_txt
+from ..utils.io_utils import read_json_as, save_json, save_txt
 from ..utils.data_transform import transform_from_configs, TransformableFirstTensorDataset
 
 from .bnn import bayesianize_
@@ -125,7 +125,7 @@ class BNN(Model):
 
         # Load model_config_fict
         model_config_path = os.path.join(save_dir, cls.model_config_file)
-        model_config_dict = read_json(model_config_path)
+        model_config_dict = read_json_as(model_config_path, dict)
 
         return cls._load(model_id, variables, save_dir, device, model_config_dict)
 

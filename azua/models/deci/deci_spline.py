@@ -9,7 +9,7 @@ import numpy as np
 
 class DECISpline(DECI):
     """
-    Flow-based VICause model where additive noise SEM base distribution is fixed to being a learnable spline distribution. Does causal discovery using a contractive and
+    Flow-based VISL model where additive noise SEM base distribution is fixed to being a learnable spline distribution. Does causal discovery using a contractive and
     invertible GNN. The adjacency is a random variable over which we do inference.
     """
 

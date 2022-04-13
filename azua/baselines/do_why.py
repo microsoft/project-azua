@@ -10,13 +10,13 @@ from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifi
 
 
 from ..models.model import Model
-
 from ..models.imodel import IModelForInterventions
+from ..models.models_factory import create_model
 from ..datasets.variables import Variables
 
 from ..datasets.dataset import Dataset
 from typing import Dict, Iterable, Optional, Any, Callable, List, Union, TypeVar, Type
-from ..utils.io_utils import save_json, save_txt, read_json
+from ..utils.io_utils import save_json, save_txt, read_json_as
 
 import graphviz
 from dowhy import CausalModel
@@ -25,7 +25,6 @@ from dowhy.causal_identifier import CausalIdentifier
 from sklearn.mixture import GaussianMixture
 from scipy.stats import multivariate_normal
 
-from ..models.models_factory import create_model
 
 T = TypeVar("T", bound="DoWhy")
 
@@ -658,7 +657,7 @@ class DoWhy(Model, IModelForInterventions):
 
         if model_config_file is None:
             model_config_file = os.path.join("configs", "defaults", f"model_config_{model_type}.json")
-        model_config = read_json(model_config_file)
+        model_config = read_json_as(model_config_file, dict)
 
         discovery_model = create_model(model_type, model_save_path, self.variables, "cpu", model_config)
         discovery_model = discovery_model.load("model_id", model_save_path, "cpu")

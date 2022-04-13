@@ -9,10 +9,6 @@ def mock_download_dataset(dataset_name: str, data_dir: str):
     raise NotImplementedError("No download_dataset functionality provided")
 
 
-def is_azureml_run_local_run():
-    return False
-
-
 def aml_step(func: Callable, creation_mode: bool) -> Callable:
     return func
 
@@ -39,7 +35,7 @@ class MockSystemMetricsLogger(ISystemMetricsLogger):
         pass
 
     def end_log(self):
-        pass
+        return {}
 
 
 # Azua context which carries the information on computation
@@ -53,7 +49,7 @@ class AzuaContext(containers.DeclarativeContainer):
     # Function for downloading the dataset
     download_dataset = providers.Callable(mock_download_dataset)
     # Function for saying whether it is aml run or not
-    is_azureml_run = providers.Callable(is_azureml_run_local_run)
+    is_azureml_run = providers.Callable(lambda: False)
     # Metrics logger used for a run
     mock_metrics_logger = MockMetricLogger()  # type:IMetricsLogger
     metrics_logger = providers.Object(mock_metrics_logger)

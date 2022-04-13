@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Tuple
+from typing import Dict, Tuple, Any
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import TensorDataset
 
-from ..utils.io_utils import read_json, read_pickle, get_nth_parent_dir
+from ..utils.io_utils import read_json_as, read_pickle, get_nth_parent_dir
 
 
 def load_particle_data(path, batch_size=1, suffix=""):
@@ -457,8 +457,8 @@ def get_relationships_as_df(path, n=None, threshold=0.5):
     to_indices, from_indices, probs = to_indices.tolist(), from_indices.tolist(), probs.tolist()
 
     # Load needed variables
-    ordered_nodes = read_json(
-        os.path.join(get_nth_parent_dir(os.path.abspath(__file__), 2), "data/eedi_task_3_4_topics/ordered_nodes.json")
+    ordered_nodes = read_json_as(
+        os.path.join(get_nth_parent_dir(os.path.abspath(__file__), 2), "data/eedi_task_3_4_topics/ordered_nodes.json"), Dict[str, Any]
     )
     topic_to_name = read_pickle(
         os.path.join(get_nth_parent_dir(os.path.abspath(__file__), 2), "data/eedi_task_3_4_topics/topic_to_name.pkl")
@@ -485,8 +485,8 @@ def get_adjacency_at_parent_level(path, threshold):
     Returns the distribution of relationships across higher level topics.
     """
     # Loading ordered_nodes and the topic_to_parent dictionary
-    ordered_nodes = read_json(
-        os.path.join(get_nth_parent_dir(os.path.abspath(__file__), 2), "data/eedi_task_3_4_topics/ordered_nodes.json")
+    ordered_nodes = read_json_as(
+        os.path.join(get_nth_parent_dir(os.path.abspath(__file__), 2), "data/eedi_task_3_4_topics/ordered_nodes.json"), Dict[str, Any]
     )
     topic_to_name = read_pickle(
         os.path.join(get_nth_parent_dir(os.path.abspath(__file__), 2), "data/eedi_task_3_4_topics/topic_to_name.pkl")

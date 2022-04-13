@@ -13,7 +13,7 @@ from dependency_injector.wiring import inject, Provide
 from ..experiment.azua_context import AzuaContext
 from ..datasets.dataset import Dataset, SparseDataset
 from ..datasets.variables import Variables
-from ..utils.io_utils import read_json
+from ..utils.io_utils import read_json_as
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ class DatasetLoader(ABC):
         """
         variables_path = os.path.join(self._dataset_dir, self._variables_file)
         logger.info(f"Variables info {variables_path} exists: {os.path.exists(variables_path)}.")
-        variables_dict = read_json(variables_path) if os.path.exists(variables_path) else None
+        variables_dict = read_json_as(variables_path, dict) if os.path.exists(variables_path) else None
         return variables_dict
 
     @staticmethod

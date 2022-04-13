@@ -9,6 +9,7 @@ from ..datasets.variables import Variables
 from ..models.imodel import IModelForCausalInference, IModelForInterventions
 from ..utils.data_mask_utils import to_tensors
 from ..utils.torch_utils import LinearModel, MultiROFFeaturiser
+from ..utils.evaluation_dataclasses import IteEvaluationResults
 
 
 def intervene_graph(adj_matrix: torch.Tensor, intervention_idxs: torch.Tensor, copy_graph: bool = True):
@@ -123,7 +124,7 @@ def get_ate_rms(
         model: IModelForInterventions from which we can sample points while applying interventions 
         test_samples: np.ndarray of shape (Nsamples, observation_dimension) containing samples from the non-intervened distribution p(y)
         intervention_datasets: List[InterventionData] containing intervetions and samples from the ground truth data generating process when the intervention is applied
-        variables: Instance of Variables containing metada used for normalisation
+        variables: Instance of Variables containing metadata used for normalisation
         most_likely_graph: whether to use the most likely causal graph (True) or to sample graphs (False)
         processed: whether the data has been processed
     """
@@ -226,7 +227,7 @@ def get_ate_from_samples(
 
     Args:
         intervened_samples: np.ndarray of shape (Nsamples, observation_dimension) containing samples from the intervened distribution p(y | do(x)=a)
-        intervened_samples: np.ndarray of shape (Nsamples, observation_dimension) containing samples from the non-intervened distribution p(y)
+        baseline_samples: np.ndarray of shape (Nsamples, observation_dimension) containing samples from the non-intervened distribution p(y)
         variables: Instance of Variables containing metada used for normalisation
         normalise: boolean indicating whether to normalise samples by their maximum and minimum values 
         processed: whether the data has been processed (which affects the column numbering)
@@ -342,6 +343,188 @@ def get_cate_from_samples(
     return torch.stack(CATE_estimates, dim=0).mean(dim=0)
 
 
+def calculate_ite(intervention_samples: np.ndarray, reference_samples: np.ndarray) -> np.ndarray:
+    """
+    Calculates individual treatment effect (ITE) between two sets of samples each
+    with shape (no. of samples, no. of variables).
+    
+    Returns: the variable-wise ITE with shape (no. of samples, no. of variables)
+    
+    """
+    
+    assert intervention_samples.shape == reference_samples.shape,\
+        "Intervention and reference samples must be the shape for ITE calculation"
+    return intervention_samples - reference_samples
+
+
+def calculate_rmse(a: np.ndarray, b: np.ndarray, axis: Optional[int] = None) -> np.ndarray:
+    """
+    Calculates the root mean squared error (RMSE) between arrays `a` and `b`.
+    
+    Args:
+        a (ndarray): Array used for error calculation
+        b (ndarray): Array used for error calculation
+        axis (int): Axis upon which to calculate mean
+    
+    Returns: (ndarray) RMSE value taken along axis `axis`.
+    """
+    return np.sqrt(np.mean(np.square(np.subtract(a, b)), axis=axis))
+
+
+def normalise_data(arrs: List[np.ndarray], variables: Variables, processed: bool) -> List[np.ndarray]:
+    """
+    Normalises all arrays in `arrs` given variable maximums (upper) and minimums (lower)
+    in `variables`. Categorical data is excluded from normalization.
+
+    Args:
+        arrs (List[ndarray]): A list of ndarrays to normalise
+        variables (Variables): A Variables instance containing metadata about arrays in `arrs`
+        processed (bool): Whether the data in `arrs` has been processed
+
+    Returns:
+        (list(ndarray)) A list of normalised ndarrays corresponding with `arrs`.
+    """
+
+    if processed:
+        n_cols = variables.num_processed_cols
+        col_groups = variables.processed_cols
+    else:
+        n_cols = variables.num_unprocessed_cols
+        col_groups = variables.unprocessed_cols
+
+    assert all(n_cols == arr.shape[1] for arr in arrs)
+
+    # if lower/uppers aren't updated, performs (arr - 0)/(1 - 0), i.e. doesn't normalize
+    lowers = np.zeros(n_cols)
+    uppers = np.ones(n_cols)
+
+    for cols_idx, variable in zip(col_groups, variables):
+        if variable.type == "continuous":
+            lowers[cols_idx] = variable.lower
+            uppers[cols_idx] = variable.upper
+
+    return [np.divide(np.subtract(arr, lowers), np.subtract(uppers, lowers)) for arr in arrs]
+
+
+def calculate_per_group_rmse(a: np.ndarray,
+                             b: np.ndarray,
+                             variables: Variables,
+                             processed: bool = False,
+                             normalise: bool = False) -> np.ndarray:
+    """
+    Calculates RMSE group-wise between two ndarrays (`a` and `b`) for all samples.
+    Arrays 'a' and 'b' have expected shape (no. of rows, no. of variables).
+    
+    Args:
+        a (ndarray): Array of shape (no. of rows, no. of variables)
+        b (ndarray): Array of shape (no. of rows, no. of variables)
+        variables (Variables): A Variables object indicating groups
+        processed (bool): Whether arrays `a` and `b` have been processed
+        normalise (bool): Whether arrays `a` and `b` should be normalised
+        
+    Returns:
+        (ndarrray) RMSE calculated over each group for each sample in `a`/`b`
+    """
+    if normalise:
+        a, b = normalise_data([a, b], variables, processed)
+
+    rmse_array = np.zeros(shape=(a.shape[0], variables.num_query_groups))
+    for return_array_idx, group_idxs in enumerate(variables.query_group_idxs):
+        # calculate RMSE columnwise for all samples
+        rmse_array[:, return_array_idx] = calculate_rmse(a[:, group_idxs], b[:, group_idxs], axis=1)
+    return rmse_array
+
+
+def filter_target_columns(arrs: List[np.ndarray], variables: Variables, processed: bool) -> Tuple[List[np.ndarray], Variables]:
+    """
+    Returns the columns associated with target variables. If `proccessed` is True, assume
+    that arrs has been processed and handle expanded columns appropriately.
+    
+    Args:
+        arrs (List[ndarray]): A list of ndarrays to be filtered
+        variables (Variables): A Variables instance containing metadata
+        processed (bool): Whether to treat data in `arrs` as having been processed
+    
+    Returns: A list of ndarrays corresponding to `arrs` with columns relating to target variables, 
+        and a new Variables instance relating to target variables
+    """    
+    if processed: 
+        # Get target idxs according to processed data
+        target_idxs = []
+        for i in variables.target_var_idxs:
+            target_idxs.extend(variables.processed_cols[i])
+    else:
+        target_idxs = variables.target_var_idxs
+        
+    return_arrs = [a[:, target_idxs] for a in arrs]    
+    target_variables = variables.subset(variables.target_var_idxs)
+    return return_arrs, target_variables
+
+
+def get_ite_evaluation_results(model: IModelForInterventions,
+                               counterfactual_datasets: List[InterventionData],
+                               variables: Variables,
+                               normalise: bool,
+                               processed: bool,
+                               most_likely_graph: bool = False,
+                               Ngraphs: int = 100) -> IteEvaluationResults:
+    """
+    Calculates ITE evaluation metrics.
+    Args: 
+        model (IModelForinterventions): Trained DECI model
+        counterfactual_datasets (list[InterventionData]): a list of counterfactual datasets 
+            used to calculate metrics.
+        variables (Variables): Variables object indicating variable group membership
+        normalise (bool): Whether the data should be normalised prior to calculating RMSE
+        processed (bool): Whether the data in `counterfactual_datasets` has been processed
+        most_likely_graph (bool): Flag indicating whether to use most likely graph. 
+            If false, model-generated counterfactual samples are averaged over `Ngraph` graphs.
+        Ngraphs (int): Number of graphs sampled when generating counterfactual samples. Unused if 
+            `most_likely_graph` is true.
+
+    Returns:
+            IteEvaluationResults object containing ITE evaluation metrics.
+    """
+    
+    per_int_av_ite_rmse = []
+    for counterfactual_data in counterfactual_datasets:
+        baseline_samples = counterfactual_data.conditioning_values
+        reference_samples = counterfactual_data.reference_data
+        intervention_samples = counterfactual_data.test_data
+        assert intervention_samples is not None
+        assert reference_samples is not None
+        
+        # get sample (ground truth) ite
+        sample_ite = calculate_ite(intervention_samples=intervention_samples, 
+                                   reference_samples=reference_samples)
+        # get model (predicted) ite
+        model_ite = model.ite(X=baseline_samples,
+                              intervention_idxs=counterfactual_data.intervention_idxs,
+                              intervention_values=counterfactual_data.intervention_values,
+                              reference_values=counterfactual_data.intervention_reference,
+                              most_likely_graph=most_likely_graph,
+                              Ngraphs=Ngraphs)
+        
+        # If there are defined target variables, only use these for evaluation
+        if len(variables.target_var_idxs) > 0:
+            [sample_ite, model_ite], variables = filter_target_columns([sample_ite, model_ite], variables, processed)
+            
+        # calculate ite rmse per group         
+        # (no. of samples, no. of input variables) -> (no. of samples, no. of groups)
+        per_group_rmse = calculate_per_group_rmse(sample_ite, model_ite, variables, processed=processed, normalise=normalise)
+        # average over all samples (no. of samples, no. of groups) -> (no. of groups)
+        av_per_group_ite_rmse = np.mean(per_group_rmse, axis=0)
+        # average over all groups (no. of groups) -> (1)
+        av_ite_rmse = np.mean(av_per_group_ite_rmse)
+
+        per_int_av_ite_rmse.append(av_ite_rmse)
+    
+    # average over all interventions
+    av_ite_rmse = np.mean(per_int_av_ite_rmse) 
+    
+    return IteEvaluationResults(av_ite_rmse, np.stack(per_int_av_ite_rmse))
+        
+    
 def generate_and_log_intervention_result_dict(
     metrics_logger=None,
     rmse_dict=None,

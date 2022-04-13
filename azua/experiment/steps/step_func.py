@@ -21,6 +21,10 @@ def load_data(
     split_type = dataset_config.get("split_type", "rows")
     negative_sample = dataset_config.get("negative_sample", False)
     dataset_format = dataset_config.get("dataset_format", "csv")
+    if dataset_name == "temporal_causal_csv":
+        timeseries_column_index = dataset_config.get("timeseries_column_index", 0)
+    else:
+        timeseries_column_index = None
 
     dataset_loader = create_dataset_loader(data_dir=data_dir, dataset_name=dataset_name, dataset_format=dataset_format)
     max_num_rows = (
@@ -28,7 +32,11 @@ def load_data(
     )  # SparseCSVDatasetLoader doesn't support max_num_rows
     if use_predefined_dataset:
         dataset = dataset_loader.load_predefined_dataset(
-            max_num_rows=max_num_rows, model_config=model_config, split_type=split_type, negative_sample=negative_sample
+            max_num_rows=max_num_rows,
+            model_config=model_config,
+            split_type=split_type,
+            negative_sample=negative_sample,
+            timeseries_column_index=timeseries_column_index,
         )
 
     if not use_predefined_dataset:
@@ -39,6 +47,7 @@ def load_data(
             max_num_rows=max_num_rows,
             negative_sample=negative_sample,
             model_config=model_config,
+            timeseries_column_index=timeseries_column_index,
         )
     return dataset
 

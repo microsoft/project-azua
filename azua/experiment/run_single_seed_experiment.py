@@ -1,5 +1,6 @@
 from ..datasets.dataset import CausalDataset
 from dependency_injector.wiring import Provide, inject
+from dataclasses import dataclass
 from .azua_context import AzuaContext
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
@@ -18,43 +19,45 @@ import time
 import shutil
 
 
-@inject
-def run_single_seed_experiment(
-    dataset_name: str,
-    data_dir: str,
-    model_type: str,
-    model_dir: str,
-    model_id: str,
-    run_inference: bool,
-    extra_eval: bool,
-    active_learning: Optional[List[str]],
-    max_steps: float,
-    max_al_rows: float,
-    causal_discovery: bool,
-    treatment_effects: bool,
-    device: str,
-    quiet: bool,
-    active_learning_users_to_plot,
-    tiny: bool,
-    dataset_config: Dict[str, Any],
-    dataset_seed: Union[int, Tuple[int, int]],
-    model_config: Dict[str, Any],
-    train_hypers: Dict[str, Any],
-    impute_config: Dict[str, Any],
-    objective_config: Dict[str, Any],
-    output_dir: str,
-    experiment_name: str,
-    model_seed: int,
-    aml_tags: Dict[str, Any],
-    logger_level: str,
-    eval_likelihood: bool = True,
-    azua_context: AzuaContext = Provide[AzuaContext],
-):
+@dataclass
+class ExperimentArguments:
+    dataset_name: str
+    data_dir: str
+    model_type: str
+    model_dir: str
+    model_id: str
+    run_inference: bool
+    extra_eval: bool
+    active_learning: Optional[List[str]]
+    max_steps: int
+    max_al_rows: int
+    causal_discovery: bool
+    treatment_effects: bool
+    device: str
+    quiet: bool
+    active_learning_users_to_plot: List[int]
+    tiny: bool
+    dataset_config: Dict[str, Any]
+    dataset_seed: Union[int, Tuple[int, int]]
+    model_config: Dict[str, Any]
+    train_hypers: Dict[str, Any]
+    impute_config: Dict[str, Any]
+    objective_config: Dict[str, Any]
+    output_dir: str
+    experiment_name: str
+    model_seed: int
+    aml_tags: Dict[str, Any]
+    logger_level: str
+    eval_likelihood: bool = True
+    azua_context: AzuaContext = Provide[AzuaContext]
 
+
+@inject
+def run_single_seed_experiment(args: ExperimentArguments):
     # Set up loggers
     logger = logging.getLogger()
     log_format = "%(asctime)s %(filename)s:%(lineno)d[%(levelname)s]%(message)s"
-    if quiet:
+    if args.quiet:
         level = logging.ERROR
     else:
         level_dict = {
@@ -64,53 +67,55 @@ def run_single_seed_experiment(
             "WARNING": logging.WARNING,
             "DEBUG": logging.DEBUG,
         }
-        level = level_dict[logger_level]
+        level = level_dict[args.logger_level]
     logging.basicConfig(level=level, force=True, format=log_format)
-    metrics_logger = azua_context.metrics_logger()
-    metrics_logger.set_tags(aml_tags)
+    metrics_logger = args.azua_context.metrics_logger()
+    metrics_logger.set_tags(args.aml_tags)
     running_times: Dict[str, float] = {}
 
-    _clean_partial_results_in_aml_run(output_dir, logger, azua_context)
+    _clean_partial_results_in_aml_run(args.output_dir, logger, args.azua_context)
 
     # Log system's metrics
-    system_metrics_logger = azua_context.system_metrics_logger()
+    system_metrics_logger = args.azua_context.system_metrics_logger()
     system_metrics_logger.start_log()
 
     # Load data
     logger.info("Loading data.")
-    dataset = load_data(dataset_name, data_dir, dataset_seed, dataset_config, model_config, tiny)
+    dataset = load_data(
+        args.dataset_name, args.data_dir, args.dataset_seed, args.dataset_config, args.model_config, args.tiny
+    )
     assert dataset.variables is not None
 
     # Preprocess configs based on args and dataset
-    preprocess_configs(model_config, train_hypers, model_type, dataset, data_dir, tiny)
+    preprocess_configs(args.model_config, args.train_hypers, args.model_type, dataset, args.data_dir, args.tiny)
 
     # Loading/training model
-    if model_id is not None:
+    if args.model_id is not None:
         logger.info("Loading pretrained model")
-        model = load_model(model_id, model_dir, device)
+        model = load_model(args.model_id, args.model_dir, args.device)
     else:
         start_time = time.time()
         model = run_train_main(
             logger=logger,
-            model_type=model_type,
-            output_dir=output_dir,
+            model_type=args.model_type,
+            output_dir=args.output_dir,
             variables=dataset.variables,
             dataset=dataset,
-            device=device,
-            model_config=model_config,
-            train_hypers=train_hypers,
+            device=args.device,
+            model_config=args.model_config,
+            train_hypers=args.train_hypers,
             metrics_logger=metrics_logger,
         )
         running_times["train/running-time"] = (time.time() - start_time) / 60
-    save_json(dataset_config, os.path.join(model.save_dir, "dataset_config.json"))
-    save_txt(dataset_name, os.path.join(model.save_dir, "dataset_name.txt"))
+    save_json(args.dataset_config, os.path.join(model.save_dir, "dataset_config.json"))
+    save_txt(args.dataset_name, os.path.join(model.save_dir, "dataset_name.txt"))
 
     # Imputation
-    if run_inference:
+    if args.run_inference:
         if not isinstance(model, IModelForImputation):
             raise ValueError("This model class does not support imputation.")
         # TODO 18412: move impute_train_data flag into each dataset's imputation config rather than hardcoding here
-        impute_train_data = dataset_name not in [
+        impute_train_data = args.dataset_name not in {
             "chevron",
             "eedi_task_1_2_binary",
             "mnist",
@@ -118,43 +123,45 @@ def run_single_seed_experiment(
             "eedi_task_3_4_topics",
             "neuropathic_pain_3",
             "neuropathic_pain_4",
-        ]
+        }
         run_eval_main(
             logger=logger,
             model=model,
             dataset=dataset,
             vamp_prior_data=None,
-            impute_config=impute_config,
-            objective_config=objective_config,
-            extra_eval=extra_eval,
-            split_type=dataset_config.get("split_type", "rows"),
-            seed=dataset_seed if isinstance(dataset_seed, int) else dataset_seed[0],
+            impute_config=args.impute_config,
+            objective_config=args.objective_config,
+            extra_eval=args.extra_eval,
+            split_type=args.dataset_config.get("split_type", "rows"),
+            seed=args.dataset_seed if isinstance(args.dataset_seed, int) else args.dataset_seed[0],
             metrics_logger=metrics_logger,
             impute_train_data=impute_train_data,
         )
 
     # Evaluate causal discovery
-    if causal_discovery:
+    if args.causal_discovery:
         assert isinstance(model, IModelForCausalInference)
         causal_model = cast(IModelForCausalInference, model)
         eval_causal_discovery(logger, dataset, causal_model, metrics_logger)
 
     # Treatment effect estimation
-    if treatment_effects:
+    if args.treatment_effects:
         if not isinstance(model, IModelForInterventions):
             raise ValueError("This model class does not support treatment effect estimation.")
         if not isinstance(dataset, CausalDataset):
             raise ValueError("This dataset type does not support treatment effect estimation.")
         preprocess_data_for_treatment = isinstance(model, DECI)
-        eval_treatment_effects(logger, dataset, model, metrics_logger, eval_likelihood, preprocess_data_for_treatment)
+        eval_treatment_effects(
+            logger, dataset, model, metrics_logger, args.eval_likelihood, preprocess_data_for_treatment
+        )
 
     # Active learning
-    if active_learning is not None:
+    if args.active_learning is not None:
         # TODO 'rand' active learning is valid for any imputation model, not just these two
         assert isinstance(model, (IModelForObjective, TransformerImputer))
-        if "eddi" in active_learning or "sing" in active_learning or "cond_sing" in active_learning:
+        if "eddi" in args.active_learning or "sing" in args.active_learning or "cond_sing" in args.active_learning:
             assert isinstance(model, IModelForObjective)
-        if "variance" in active_learning:
+        if "variance" in args.active_learning:
             assert isinstance(model, TransformerImputer)
         start_time = time.time()
         test_data, test_mask = dataset.test_data_and_mask
@@ -162,18 +169,18 @@ def run_single_seed_experiment(
         assert test_mask is not None
 
         run_active_learning_main(
-            logger,
-            model,
-            test_data,
-            test_mask,
-            None,
-            active_learning,
-            objective_config,
-            impute_config,
-            seed=model_seed,
-            max_steps=max_steps,
-            max_rows=max_al_rows,
-            users_to_plot=active_learning_users_to_plot,
+            logger=logger,
+            model=model,
+            data=test_data,
+            mask=test_mask,
+            vamp_prior_data=None,
+            active_learning_strategies=args.active_learning,
+            objective_config=args.objective_config,
+            impute_config=args.impute_config,
+            users_to_plot=args.active_learning_users_to_plot,
+            seed=args.model_seed,
+            max_steps=args.max_steps,
+            max_rows=args.max_al_rows,
             metrics_logger=metrics_logger,
         )
         running_times["nbq/running-time"] = (time.time() - start_time) / 60
@@ -186,9 +193,9 @@ def run_single_seed_experiment(
     save_json(running_times, os.path.join(model.save_dir, "running_times.json"))
     metrics_logger.finalize()
 
-    _copy_results_in_aml_run(output_dir, azua_context)
+    _copy_results_in_aml_run(args.output_dir, args.azua_context)
 
-    return model, model_config
+    return model, args.model_config
 
 
 def _clean_partial_results_in_aml_run(output_dir: str, logger: logging.Logger, azua_context: AzuaContext):
