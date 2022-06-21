@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import os
+from typing import Tuple
 
 import numpy as np
 
-from ..models.imodel import IModel
 from ..datasets.variables import Variables
 from ..utils.helper_functions import write_git_info
-
-from typing import Tuple
+from .imodel import IModel
 
 
 class Model(IModel):

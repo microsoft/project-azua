@@ -3,19 +3,16 @@ from __future__ import annotations
 
 import os
 import warnings
-
+from typing import List, Optional, Tuple, Type, Union
 
 import torch
-
-from ..models.decoder import Decoder
-from ..models.encoder import Encoder
-
-from ..utils.torch_utils import get_torch_device
+from torch.nn import Identity, ReLU, Sigmoid, Tanh
 
 from ..datasets.variables import Variables
-from ..models.torch_vae import TorchVAE
-from typing import List, Tuple, Union, Optional, Type
-from torch.nn import ReLU, Sigmoid, Tanh, Identity
+from ..utils.torch_utils import get_torch_device
+from .decoder import Decoder
+from .encoder import Encoder
+from .torch_vae import TorchVAE
 
 
 class VAE(TorchVAE):
@@ -71,7 +68,7 @@ class VAE(TorchVAE):
             categorical_likelihood_coefficient (float): coefficient for balancing likelihoods
             kl_coefficient (float): coefficient for KL terms
             variance_autotune (bool): automatically tune variances or not
-            
+
         """
 
         if input_dim is None:
@@ -124,7 +121,12 @@ class VAE(TorchVAE):
 
     @classmethod
     def _load(
-        cls, model_id: str, variables: Variables, save_dir: str, device: Union[str, int, torch.device], **kwargs,
+        cls,
+        model_id: str,
+        variables: Variables,
+        save_dir: str,
+        device: Union[str, int, torch.device],
+        **kwargs,
     ) -> VAE:
         """
         Load an instance of `VAE` class.

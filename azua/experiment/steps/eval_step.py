@@ -8,35 +8,33 @@ import datetime as dt
 import os
 import warnings
 from logging import Logger
-from typing import Any, Dict, cast, Optional, Union
+from typing import Any, Dict, Optional, Union, cast
 
 import numpy as np
-from scipy.sparse import issparse, csr_matrix
+from scipy.sparse import csr_matrix, issparse
 
-from ..imetrics_logger import IMetricsLogger
-from ...datasets.dataset import Dataset, SparseDataset, CausalDataset, InterventionData, TemporalDataset
-from ...models.imodel import IModelForImputation, IModelForObjective, IModelForCausalInference, IModelForInterventions
 from ...models.pvae_base_model import PVAEBaseModel
-from ...utils.causality_utils import get_ate_rms, get_treatment_data_logprob, generate_and_log_intervention_result_dict
+from ...datasets.dataset import Dataset, SparseDataset
+from ...models.imodel import (
+    IModelForImputation,
+    IModelForObjective,
+)
 from ...utils.check_information_gain import test_information_gain
 from ...utils.imputation import (
-    run_imputation_with_stats,
     eval_imputation,
     impute_targets_only,
     plot_pairwise_comparison,
+    run_imputation_with_stats,
 )
 from ...utils.metrics import (
     compute_save_additional_metrics,
     compute_target_metrics,
+    save_confusion_plot,
     save_train_val_test_metrics,
-)
-from ...utils.nri_utils import (
-    edge_prediction_metrics,
-    edge_prediction_metrics_multisample,
-    convert_temporal_adj_matrix_to_static,
 )
 from ...utils.plot_functions import violin_plot_imputations
 from ...utils.torch_utils import set_random_seeds
+from ..imetrics_logger import IMetricsLogger
 
 
 def run_eval_main(
@@ -103,8 +101,7 @@ def run_eval_main(
     ) = eval_imputation(dataset, model, variables, split_type, vamp_prior_data, impute_config, impute_train_data, seed)
 
     # Marginal log likelihood
-    if extra_eval and issubclass(type(model), PVAEBaseModel):
-        model = cast(PVAEBaseModel, model)
+    if extra_eval and isinstance(model, PVAEBaseModel):
 
         if impute_train_data:
             train_imputation_mll = model.get_marginal_log_likelihood(
@@ -135,14 +132,14 @@ def run_eval_main(
         )
         test_metrics["Imputation MLL"] = test_imputation_mll
 
-    save_confusion = len(variables.continuous_idxs) == 0
     save_train_val_test_metrics(
         train_metrics=train_metrics,
         val_metrics=val_metrics,
         test_metrics=test_metrics,
         save_file=os.path.join(model.save_dir, "results.json"),
-        save_confusion=save_confusion,
     )
+    if len(variables.continuous_idxs) == 0:
+        save_confusion_plot(test_metrics, model.save_dir)
 
     # Target value imputation
     if split_type != "elements":
@@ -169,7 +166,6 @@ def run_eval_main(
             val_metrics=val_target_metrics,
             test_metrics=test_target_metrics,
             save_file=os.path.join(model.save_dir, "target_results.json"),
-            save_confusion=False,
         )
     else:
         train_target_metrics = {}
@@ -252,14 +248,20 @@ def run_eval_main(
         assert isinstance(model, IModelForObjective)
         model_for_objective = cast(IModelForObjective, model)
         test_information_gain(
-            logger, model_for_objective, test_data_dense, test_mask_dense, vamp_prior_data, impute_config, seed=seed,
+            logger,
+            model_for_objective,
+            test_data_dense,
+            test_mask_dense,
+            vamp_prior_data,
+            impute_config,
+            seed=seed,
         )
 
     # Additional metrics
     if (
         len(variables.target_var_idxs) == 0
         and not issparse(train_data)
-        and model.name() not in ["visl", "deci", "deci_gaussian", "deci_spline"]
+        and model.name() != "visl"
         and model.name() not in ["mean_imputing", "mice", "missforest", "zero_imputing"]
     ):
         # If there is no target then we compute additional metrics that are question quality and difficulty.
@@ -271,178 +273,15 @@ def run_eval_main(
         assert isinstance(model, IModelForObjective)
         model_for_objective = cast(IModelForObjective, model)
         compute_save_additional_metrics(
-            test_imputations, train_data, model_for_objective, model.save_dir, objective_config=objective_config,
+            test_imputations,
+            train_data,
+            model_for_objective,
+            model.save_dir,
+            objective_config=objective_config,
         )
     elif model.name() == "visl":
         warnings.warn("Question quality and difficulty are not currently implemented for visl")
-    elif model.name() in ["deci", "deci_gaussian", "deci_spline"]:
-        warnings.warn("Question quality and difficulty are not currently implemented for deci model")
     elif model.name() in ["mean_imputing", "mice", "missforest", "zero_imputing"]:
         warnings.warn("Question quality and difficulty are not currently implemented for imputation baselines")
     if metrics_logger:
         metrics_logger.log_value("impute/running-time", (dt.datetime.utcnow() - start_time).total_seconds() / 60)
-
-
-def eval_causal_discovery(
-    logger: Logger,
-    dataset: CausalDataset,
-    model: IModelForCausalInference,
-    metrics_logger: Optional[IMetricsLogger] = None,
-):
-    """
-    Args:
-        logger (`logging.Logger`): Instance of logger class to use.
-        dataset: Dataset or SparseDataset object.
-        model (IModelForCausalInference): Model to use.
-
-    This requires the model to have a method get_adjacency_data_matrix() implemented, which returns the adjacency
-    matrix learnt from the data.
-    """
-    adj_ground_truth = dataset.get_adjacency_data_matrix()
-
-    # For DECI, the default is to give 100 samples of the graph posterior
-    adj_pred = model.get_adj_matrix().astype(float).round()
-
-    # Convert temporal adjacency matrices to static adjacency matrices, currently does not support partially observed ground truth (i.e. subgraph_idx=None).
-    if type(dataset) == TemporalDataset:
-        adj_ground_truth, adj_pred = convert_temporal_adj_matrix_to_static(adj_ground_truth, adj_pred)
-        subgraph_idx = None
-    else:
-        subgraph_idx = dataset.get_known_subgraph_mask_matrix()
-
-    # save adjacency matrix
-    np.save(os.path.join(model.save_dir, "adj_matrices"), adj_pred, allow_pickle=True, fix_imports=True)
-
-    if len(adj_pred.shape) == 2:
-        # If predicts single adjacency matrix
-        results = edge_prediction_metrics(adj_ground_truth, adj_pred, adj_matrix_mask=subgraph_idx)
-    elif len(adj_pred.shape) == 3:
-        # If predicts multiple adjacency matrices (stacked)
-        results = edge_prediction_metrics_multisample(adj_ground_truth, adj_pred, adj_matrix_mask=subgraph_idx)
-    if metrics_logger is not None:
-        # Log metrics to AzureML
-        metrics_logger.log_value("adjacency.recall", results["adjacency_recall"])
-        metrics_logger.log_value("adjacency.precision", results["adjacency_precision"])
-        metrics_logger.log_value("adjacency.f1", results["adjacency_fscore"], True)
-        metrics_logger.log_value("orientation.recall", results["orientation_recall"])
-        metrics_logger.log_value("orientation.precision", results["orientation_precision"])
-        metrics_logger.log_value("orientation.f1", results["orientation_fscore"], True)
-        metrics_logger.log_value("causal_accuracy", results["causal_accuracy"])
-        metrics_logger.log_value("causalshd", results["shd"])
-        metrics_logger.log_value("causalnnz", results["nnz"])
-    # Save causality results to a file
-    save_train_val_test_metrics(
-        train_metrics={},
-        val_metrics={},
-        test_metrics=results,
-        save_file=os.path.join(model.save_dir, "target_results_causality.json"),
-        save_confusion=False,
-    )
-
-
-def eval_treatment_effects(
-    logger: Logger,
-    dataset: CausalDataset,
-    model: IModelForInterventions,
-    metrics_logger: Optional[IMetricsLogger] = None,
-    eval_likelihood: bool = True,
-    process_dataset: bool = True,
-) -> None:
-    """
-    Run treatment effect experiments: ATE RMSE and interventional distribution log-likelihood with graph marginalisation and most likely (ml) graph.
-        Save results as json file and in metrics logger.
-    Args:
-        logger (`logging.Logger`): Instance of logger class to use.
-        dataset: Dataset or SparseDataset object.
-        model (IModelForInterventions): Model to use.
-        metrics_logger: Optional[IMetricsLogger]
-        name_prepend: Optional string that will be prepended to the json save name and logged metrics.
-             This allows us to distinguish results from end2end models from results computed with downstream models (models that require graph as input, like DoWhy)
-        eval_likelihood: Optional bool flag that will disable the log likelihood evaluation
-        process_data: Whether to apply the data processor to the interventional data. This is done for Azua-internal models such as DECI, and not for DoWhy.
-
-    This requires the model to implement methods sample() to sample from the model distribution with interventions
-     and log_prob() to evaluate the density of test samples under interventions
-    """
-    # Process test and intervention data in the same way that train data is processed
-    if process_dataset:
-        processed_dataset = model.data_processor.process_dataset(dataset)
-    else:
-        processed_dataset = dataset
-    test_data, _ = processed_dataset.test_data_and_mask
-
-    # TODO: when scaling continuous variables in `process_dataset` we should call `revert_data` to evaluate RMSE in original space
-    rmse_dict = get_ate_rms(
-        model,
-        test_data.astype(float),
-        processed_dataset.get_intervention_data(),
-        processed_dataset.variables,
-        processed=process_dataset,
-    )
-    rmse_most_likely_dict = get_ate_rms(
-        model,
-        test_data.astype(float),
-        processed_dataset.get_intervention_data(),
-        processed_dataset.variables,
-        most_likely_graph=True,
-        processed=process_dataset,
-    )
-
-    if eval_likelihood:
-        log_prob_dict = get_treatment_data_logprob(model, processed_dataset.get_intervention_data())
-        log_prob_most_likely_dict = get_treatment_data_logprob(
-            model, processed_dataset.get_intervention_data(), most_likely_graph=True
-        )
-
-        # Evaluate test log-prob only for models that support it
-        if "do" not in model.name():
-            base_testset_intervention = [
-                InterventionData(
-                    intervention_idxs=np.array([]), intervention_values=np.array([]), test_data=test_data.astype(float)
-                )
-            ]
-            test_log_prob_dict = get_treatment_data_logprob(model, base_testset_intervention)
-        else:
-            test_log_prob_dict = None
-    else:
-        logger.info("Disable the log likelihood evaluation for this causal model")
-        log_prob_dict = None
-        log_prob_most_likely_dict = None
-        test_log_prob_dict = None
-
-    # Generate result dict
-    metric_dict = generate_and_log_intervention_result_dict(
-        metrics_logger=metrics_logger,
-        rmse_dict=rmse_dict,
-        rmse_most_likely_dict=rmse_most_likely_dict,
-        log_prob_dict=log_prob_dict,
-        log_prob_most_likely_dict=log_prob_most_likely_dict,
-        test_log_prob_dict=test_log_prob_dict,
-    )
-
-    # prepend modifier to save names
-    base_name = "TE"
-    savefile = "results_interventions"
-    savefile += ".json"
-
-    if metrics_logger is not None:
-        # Log metrics to AzureML
-
-        if "all interventions" in metric_dict.keys() and "ATE RMSE" in metric_dict["all interventions"].keys():
-            metrics_logger.log_value(base_name + "_rmse", metric_dict["all interventions"]["ATE RMSE"], True)
-
-        if "all interventions" in metric_dict.keys() and "log prob mean" in metric_dict["all interventions"].keys():
-            metrics_logger.log_value(
-                base_name + "_LL", metric_dict["all interventions"]["log prob mean"], True,
-            )
-        if "test log prob mean" in metric_dict.keys():
-            metrics_logger.log_value("test_LL", metric_dict["test log prob mean"], True)
-
-    # Save intervention results to a file
-    save_train_val_test_metrics(
-        train_metrics={},
-        val_metrics={},
-        test_metrics=metric_dict,
-        save_file=os.path.join(model.save_dir, savefile),
-        save_confusion=False,
-    )

@@ -1,15 +1,15 @@
-from typing import Any, Dict, Optional, Callable, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import numpy as np
+from sklearn.ensemble import ExtraTreesRegressor
 
 # Explicitly enable experimental IterativeImputer (new in scikit-learn 0.22.2)
 from sklearn.experimental import enable_iterative_imputer  # noqa F401
 from sklearn.impute import IterativeImputer
-from sklearn.ensemble import ExtraTreesRegressor
 
-from ..baselines.sk_learn_imputer import SKLearnImputer
 from ..datasets.dataset import Dataset
 from ..datasets.variables import Variables
+from .sk_learn_imputer import SKLearnImputer
 
 
 class MissForest(SKLearnImputer):

@@ -1,14 +1,14 @@
-from typing import Type
 import warnings
+from typing import Type
 
 import numpy as np
 import torch
 from torch.jit import TracerWarning
-from torch.nn import ReLU, Softmax, Sigmoid
+from torch.nn import ReLU, Sigmoid, Softmax
 
-from ..utils.torch_utils import generate_fully_connected
-from ..utils.exceptions import ONNXNotImplemented
 from ..datasets.variables import Variables
+from ..models.torch_model import ONNXNotImplemented
+from ..utils.torch_utils import generate_fully_connected
 
 warnings.filterwarnings("ignore", category=TracerWarning)
 

@@ -1,4 +1,2 @@
+from . import mixins, nets
 from .modules import *
-
-from . import mixins
-from . import nets

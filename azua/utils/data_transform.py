@@ -1,9 +1,8 @@
 from typing import Any, Callable, Dict, List, Optional
 
 import torch
-from torch.utils.data import TensorDataset
-
 import torchvision
+from torch.utils.data import TensorDataset
 
 
 def _instantiate_torchvision_transform(class_name: str, **kwargs: Any):
@@ -20,7 +19,9 @@ class TransformableTensorDataset(TensorDataset):
     and maps the transforms over the tensors when retrieving an item."""
 
     def __init__(
-        self, tensors: List[torch.Tensor], transforms: List[Optional[Callable[[torch.Tensor], torch.Tensor]]],
+        self,
+        tensors: List[torch.Tensor],
+        transforms: List[Optional[Callable[[torch.Tensor], torch.Tensor]]],
     ):
         super().__init__(*tensors)
         if len(tensors) != len(transforms):

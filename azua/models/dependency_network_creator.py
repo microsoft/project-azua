@@ -1,9 +1,11 @@
-import torch
-from ..models.partial_vae import PartialVAE
-from ..datasets.variables import Variables, Variable
-import numpy as np
 import os
 from typing import Dict
+
+import numpy as np
+import torch
+
+from ..datasets.variables import Variable, Variables
+from .partial_vae import PartialVAE
 
 
 # Auxilary class for creating dependency network in (Predictive)VAEM models:

@@ -1,26 +1,29 @@
 from __future__ import annotations
 
-import os
-import logging
-from typing import Union, Any, Type, Dict, TypeVar, Tuple
 import copy
-from time import strftime, gmtime
+import logging
+import os
+from time import gmtime, strftime
+from typing import Any, Dict, Tuple, Type, TypeVar, Union
 
 import torch
 
-from ..models.model import Model
 from ..datasets.variables import Variables
 from ..utils.helper_functions import maintain_random_state
 from ..utils.io_utils import read_json_as, save_json, save_txt
-from ..utils.torch_utils import set_random_seeds, get_torch_device
-from ..models.torch_training_types import LossConfig, LossResults
-from ..utils.exceptions import ONNXNotImplemented
+from ..utils.torch_utils import get_torch_device, set_random_seeds
+from .model import Model
+from .torch_training_types import LossConfig, LossResults
 
 logger = logging.getLogger(__name__)
 
 # Create type variable with upper bound of `TorchModel`, in order to precisely specify return types of create/load
 # methods as the subclass on which they are called
 T = TypeVar("T", bound="TorchModel")
+
+
+class ONNXNotImplemented(NotImplementedError):
+    pass
 
 
 class TorchModel(Model, torch.nn.Module):
@@ -80,14 +83,19 @@ class TorchModel(Model, torch.nn.Module):
         raise NotImplementedError
 
     @classmethod
-    def load(cls: Type[T], model_id: str, save_dir: str, device: Union[str, int, torch.device],) -> T:
+    def load(
+        cls: Type[T],
+        model_id: str,
+        save_dir: str,
+        device: Union[str, int, torch.device],
+    ) -> T:
         """
         Load an instance of a model.
 
         Args:
             model_id: Unique model ID for referencing this model instance.
             save_dir: Save directory for this model.
-            device: Name of Torch device to create the model on. Valid options are 'cpu', 'gpu', or a 
+            device: Name of Torch device to create the model on. Valid options are 'cpu', 'gpu', or a
                 device ID (e.g. 0 or 1 on a two-GPU machine). Can also pass a torch.device directly.
 
         Returns:
@@ -132,7 +140,7 @@ class TorchModel(Model, torch.nn.Module):
                 the form {arg_name: arg_value}. e.g. {"embedding_dim": 10, "latent_dim": 20}
             device: Name of device to load the model on. Valid options are 'cpu', 'gpu', or a device ID
                 (e.g. 0 or 1 on a two-GPU machine). Can also pass a torch.device directly. Ignored for some models.
-        
+
         Returns:
             model: Instance of concrete implementation of `Model` class.
         """
@@ -193,7 +201,7 @@ class TorchModel(Model, torch.nn.Module):
             device: Name of Torch device to create the model on. Valid options are 'cpu', 'gpu',
                 or a device ID (e.g. 0 or 1 on a two-GPU machine). Can also pass a torch.device directly.
             random_seed: Random seed to set before creating model. Defaults to 0.
-            **model_config_dict: Any other arguments needed by the concrete class. Defaults can be specified in the 
+            **model_config_dict: Any other arguments needed by the concrete class. Defaults can be specified in the
                 concrete class. e.g. ..., embedding_dim, latent_dim=20, ...
 
         Returns:

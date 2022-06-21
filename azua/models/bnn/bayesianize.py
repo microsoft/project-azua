@@ -1,10 +1,9 @@
 import inspect
 import itertools
-from typing import Any, Dict, Union, Optional
+from typing import Any, Dict, Optional, Union
 
 import torch
 import torch.nn as nn
-
 
 from .nn.mixins.base import BayesianMixin
 

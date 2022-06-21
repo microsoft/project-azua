@@ -1,16 +1,14 @@
+import math
 import operator
 from functools import reduce
-import math
-from typing import cast, Optional, Union
+from typing import Optional, Union, cast
 
 import torch
+import torch.distributions as dist
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.distributions as dist
-
 
 from .base import VariationalMixin
-
 
 EPS = 1e-6
 

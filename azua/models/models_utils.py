@@ -1,8 +1,8 @@
 # Utils for models
+from typing import overload
+
 import numpy as np
 import torch
-
-from typing import overload
 
 
 @overload

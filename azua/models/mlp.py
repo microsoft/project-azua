@@ -3,24 +3,19 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Dict, Optional, List, Callable
+from typing import Any, Callable, Dict, List, Optional
 
+import numpy as np
 import torch
 from torch.nn import ReLU
 from torch.utils.tensorboard import SummaryWriter
-import numpy as np
-from tqdm import trange, tqdm  # type: ignore
+from tqdm import tqdm, trange  # type: ignore
 
-from ..models.torch_model import TorchModel
-from ..datasets.variables import Variables
 from ..datasets.dataset import Dataset
-
-from ..utils.torch_utils import (
-    generate_fully_connected,
-    CrossEntropyLossWithConvert,
-    create_dataloader,
-)
+from ..datasets.variables import Variables
+from ..models.torch_model import TorchModel
 from ..utils.io_utils import save_json
+from ..utils.torch_utils import CrossEntropyLossWithConvert, create_dataloader, generate_fully_connected
 
 
 class MLP(TorchModel):
@@ -48,7 +43,10 @@ class MLP(TorchModel):
         target_var_idxs = self.variables.target_var_idxs
         assert len(target_var_idxs) == 1, "Must have one target variable"
         self._target_type = self.variables[target_var_idxs[0]].type
-        (self._loss_function, self._activation_function,) = self._get_loss_and_activation_function()
+        (
+            self._loss_function,
+            self._activation_function,
+        ) = self._get_loss_and_activation_function()
 
     def _get_loss_and_activation_function(self):
         if self._target_type == "categorical":
@@ -179,7 +177,13 @@ class MLPNetwork(torch.nn.Module):
     """
 
     def __init__(
-        self, input_dim, hidden_dims, output_dim, device, non_linearity=ReLU, activation=None,
+        self,
+        input_dim,
+        hidden_dims,
+        output_dim,
+        device,
+        non_linearity=ReLU,
+        activation=None,
     ):
         """
         Args:

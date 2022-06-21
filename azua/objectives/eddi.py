@@ -1,7 +1,7 @@
 import numpy as np
 
-from ..objectives.eddi_base import EDDIBaseObjective
 from ..utils.data_mask_utils import argsort_rows_exclude_nan
+from .eddi_base import EDDIBaseObjective
 
 
 class EDDIObjective(EDDIBaseObjective):

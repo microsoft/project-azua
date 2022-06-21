@@ -2,8 +2,8 @@ from typing import Tuple
 
 import torch
 
-from .vae import VAE
 from .bnn import bayesianize_
+from .vae import VAE
 
 
 class BayesianVAE(VAE):

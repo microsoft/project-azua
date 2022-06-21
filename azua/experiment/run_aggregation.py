@@ -1,7 +1,9 @@
-from dependency_injector.wiring import Provide, inject
-from .azua_context import AzuaContext
 from typing import Any, Dict, List
+
+from dependency_injector.wiring import Provide, inject
+
 from ..experiment.steps.aggregation_step import run_aggregation_main
+from .azua_context import AzuaContext
 
 
 @inject

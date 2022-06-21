@@ -70,7 +70,8 @@ class ImputationStatistics:
         stats["majority_prob"] = stats["marginal_prob"][np.arange(N_data), stats["majority_vote"]]
         stats["majority_vote"] += variable.lower  # shift the category back if variable.lower != 0
         stats["entropy"] = -np.sum(
-            stats["marginal_prob"] * np.log(np.clip(stats["marginal_prob"], 1e-5, 1.0)), axis=-1,
+            stats["marginal_prob"] * np.log(np.clip(stats["marginal_prob"], 1e-5, 1.0)),
+            axis=-1,
         )
 
         return stats

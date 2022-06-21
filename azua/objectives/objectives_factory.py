@@ -1,9 +1,9 @@
-from typing import Dict, Any, Union
+from typing import Any, Dict, Union
 
 from ..models.imodel import IModelForObjective
-from ..models.transformer_imputer import TransformerImputer
-from ..objectives.objective import Objective
 from ..utils.factory_utils import get_named_subclass
+from ..models.transformer_imputer import TransformerImputer
+from .objective import Objective
 
 
 def create_objective(

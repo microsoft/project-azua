@@ -1,17 +1,15 @@
 import math
-from functools import reduce
 import operator
-from typing import cast, Union
+from functools import reduce
+from typing import Union, cast
 
 import torch
+import torch.distributions as dist
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.distributions as dist
 from torch.nn.utils import parameters_to_vector
 
-
 from .base import VariationalMixin
-
 
 __all__ = ["FCGMixin"]
 

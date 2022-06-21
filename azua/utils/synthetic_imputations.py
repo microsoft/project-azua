@@ -4,7 +4,7 @@ import numpy as np
 def synthetic_fill_variables(data, next_qs_lists, idx, method=None, average=True):
     user_count, feature_count = data.shape
 
-    if idx is not None and method is not None and method not in ["b_ei", "bin", "gls"]:
+    if idx is not None and method is not None and method != "b_ei":
         next_qs_lists = np.concatenate(((next_qs_lists, np.repeat(idx, user_count)[:, np.newaxis])), axis=1)
 
     if type(next_qs_lists) is list:
@@ -29,27 +29,22 @@ def synthetic_fill_variables(data, next_qs_lists, idx, method=None, average=True
             if next_qs_lists[i, 1] < next_qs_lists[i, 0]:
                 imputations[i] += percentage_improv[i, next_qs_lists[i, 1].astype(int), :]
 
-        if n_feat_col == 3 and method != "b_ei" and method != "k_ei":
+        if n_feat_col == 3 and method != "b_ei":
             if next_qs_lists[i, 1] < next_qs_lists[i, 0]:
                 imputations[i] += percentage_improv[i, next_qs_lists[i, 1].astype(int), :]
 
             if next_qs_lists[i, 1] < next_qs_lists[i, 2]:
                 imputations[i] += percentage_improv[i, next_qs_lists[i, 2].astype(int), :]
 
-        if method in ["b_ei", "bin"]:
+        if method == "b_ei":
             if idx is not None:
                 imputations[i] += np.sum(percentage_improv[i, np.asarray(idx[i]).astype(int), :], axis=0)
 
             if idx is None:
-                if set([1, 2]).issubset(next_qs_lists[i]):
+                if {1, 2}.issubset(next_qs_lists[i]):
                     imputations[i] += 0.2
             else:
-                if set([1, 2]).issubset(idx[i]):
+                if {1, 2}.issubset(idx[i]):
                     imputations[i] += 0.2
 
-    if average:
-        result = np.mean(imputations, axis=1)
-    else:
-        result = imputations
-
-    return result
+    return np.mean(imputations, axis=1) if average else imputations

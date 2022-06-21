@@ -2,33 +2,25 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Dict, Optional, Tuple, Any, Union, cast, Callable, overload
+from typing import Any, Callable, Dict, Optional, Tuple, Union, cast, overload
 
 import numpy as np
-from scipy.sparse import csr_matrix, issparse
 import torch
+from scipy.sparse import csr_matrix, issparse
 from tqdm import tqdm
 
+from ..utils.active_learning import save_info_gain_normalizer
+from ..datasets.dataset import Dataset, SparseDataset
+from ..datasets.variables import Variables
 from ..models.imodel import IModelForObjective
 from ..models.torch_model import TorchModel
 from ..models.torch_training_types import LossConfig
-from ..datasets.variables import Variables
-from ..datasets.dataset import Dataset, SparseDataset
-from ..objectives.eddi import EDDIObjective
-from ..models.torch_imputation import impute
-
-from ..utils.training_objectives import (
-    negative_log_likelihood,
-    gaussian_negative_log_likelihood,
-)
-from ..utils.data_mask_utils import (
-    restore_preserved_values,
-    sample_inducing_points,
-    to_tensors,
-)
+from ..utils.data_mask_utils import restore_preserved_values, sample_inducing_points
+from ..utils.helper_functions import to_tensors
 from ..utils.torch_utils import create_dataloader
-from ..utils.active_learning import save_info_gain_normalizer
-
+from ..utils.training_objectives import gaussian_negative_log_likelihood, negative_log_likelihood
+from ..objectives.eddi import EDDIObjective
+from .torch_imputation import impute
 
 EPSILON = 1e-5
 
@@ -130,7 +122,7 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
         impute_config_dict: Optional[Dict[str, Any]] = None,
         *,
         vamp_prior_data: Optional[Tuple[np.ndarray, np.ndarray]] = None,
-        average: bool = True
+        average: bool = True,
     ) -> np.ndarray:
         ...
 
@@ -142,7 +134,7 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
         impute_config_dict: Optional[Dict[str, Any]] = None,
         *,
         vamp_prior_data: Optional[Tuple[csr_matrix, csr_matrix]] = None,
-        average: bool = True
+        average: bool = True,
     ) -> np.ndarray:
         ...
 
@@ -170,29 +162,29 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
         sample_count: int,
         preserve_data: bool = True,
         vamp_prior_data: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
-        **kwargs
+        **kwargs,
     ) -> torch.Tensor:
         """
-        Fill in unobserved variables in a minibatch of data using a trained model. Optionally, use a vamp prior to
-        impute empty rows, and optionally replace imputed values with input values for observed features.
+         Fill in unobserved variables in a minibatch of data using a trained model. Optionally, use a vamp prior to
+         impute empty rows, and optionally replace imputed values with input values for observed features.
 
-        Assumes data is a torch.Tensor and in processed form (i.e. variables will be in their squashed ranges,
-        and categorical variables will be in one-hot form).
+         Assumes data is a torch.Tensor and in processed form (i.e. variables will be in their squashed ranges,
+         and categorical variables will be in one-hot form).
 
-        Args:
-            data (shape (batch_size, input_dim)): Data to be used to train the model, in processed form.
-            mask (shape (batch_size, input_dim)): Data observation mask, where observed values are 1 and unobserved 
-                values are 0.
-            sample_count: Number of imputation samples to generate.
-            vamp_prior_data (Tuple of (torch tensor, torch tensor)): Data to be used to fill variables if using the VAMP
-                prior method. Format: (data, mask). This defaults to None, in which case the VAMP Prior method will not 
-                be used.
-            preserve_data (bool): Whether or not to impute data already present. Defaults to True, which keeps data
-                present in input.
+         Args:
+             data (shape (batch_size, input_dim)): Data to be used to train the model, in processed form.
+             mask (shape (batch_size, input_dim)): Data observation mask, where observed values are 1 and unobserved
+                 values are 0.
+             sample_count: Number of imputation samples to generate.
+             vamp_prior_data (Tuple of (torch tensor, torch tensor)): Data to be used to fill variables if using the VAMP
+                 prior method. Format: (data, mask). This defaults to None, in which case the VAMP Prior method will not
+                 be used.
+             preserve_data (bool): Whether or not to impute data already present. Defaults to True, which keeps data
+                 present in input.
 
-       Returns:
-            imputations (torch.Tensor of shape (sample_count, batch_size, output_dim)): Input data with missing values
-                filled in.
+        Returns:
+             imputations (torch.Tensor of shape (sample_count, batch_size, output_dim)): Input data with missing values
+                 filled in.
         """
         if not isinstance(data, torch.Tensor) or not isinstance(mask, torch.Tensor):
             raise ValueError("data and mask should be tensors. To work on ndarrays, use impute")
@@ -229,7 +221,11 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
         return imputations
 
     def get_model_pll(
-        self: PVAEBaseModel, data: np.ndarray, feature_mask: np.ndarray, target_idx, sample_count: int = 50,
+        self: PVAEBaseModel,
+        data: np.ndarray,
+        feature_mask: np.ndarray,
+        target_idx,
+        sample_count: int = 50,
     ):
         """
         Computes the predictive log-likelihood of the target-data given the feature_mask-masked data as input.
@@ -247,9 +243,10 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
 
         """
         # Process input data
-        (proc_feature_data_array, proc_feature_mask_array,) = self.data_processor.process_data_and_masks(
-            data, feature_mask
-        )
+        (
+            proc_feature_data_array,
+            proc_feature_mask_array,
+        ) = self.data_processor.process_data_and_masks(data, feature_mask)
         proc_feature_data, proc_feature_mask = to_tensors(
             proc_feature_data_array, proc_feature_mask_array, device=self._device
         )
@@ -259,9 +256,10 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
         target_mask[:, target_idx] = 1
 
         # Process target data
-        (proc_target_data_array, proc_target_mask_array,) = self.data_processor.process_data_and_masks(
-            data, target_mask
-        )
+        (
+            proc_target_data_array,
+            proc_target_mask_array,
+        ) = self.data_processor.process_data_and_masks(data, target_mask)
         proc_target_data, proc_target_mask = to_tensors(
             proc_target_data_array, proc_target_mask_array, device=self._device
         )
@@ -292,7 +290,7 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
         target_mask: Optional[Union[np.ndarray, csr_matrix]] = None,
         evaluate_imputation: Optional[bool] = False,
         num_importance_samples: int = 5000,
-        **kwargs
+        **kwargs,
     ) -> float:
         """
         Estimate marginal log-likelihood of the data using importance sampling:
@@ -344,7 +342,11 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
 
         with torch.no_grad():
             dataloader = create_dataloader(
-                processed_data, processed_obs_mask, processed_target_mask, batch_size=batch_size, sample_randomly=False,
+                processed_data,
+                processed_obs_mask,
+                processed_target_mask,
+                batch_size=batch_size,
+                sample_randomly=False,
             )
 
             for idx, (processed_data_batch, processed_obs_mask_batch, processed_target_mask_batch) in enumerate(
@@ -376,9 +378,7 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
     @abstractmethod
     def reconstruct(
         self, data: torch.Tensor, mask: Optional[torch.Tensor], sample: bool = True, count: int = 1, **kwargs: Any
-    ) -> Tuple[
-        Tuple[torch.Tensor, torch.Tensor], torch.Tensor, Tuple[torch.Tensor, torch.Tensor],
-    ]:
+    ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor, Tuple[torch.Tensor, torch.Tensor],]:
         """
         Reconstruct data by passing them through the VAE.
         Note that mask=None should always be used in subclasses that don's support missing values.
@@ -424,14 +424,14 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
     ) -> torch.Tensor:
         """
         Make sample_count imputations of missing data for given data and mask.
-        
+
          Args:
             data: partially observed data with shape (batch_size, input_dim).
-            mask: mask indicating observed variables with shape (batch_size, input_dim). 1 is observed, 0 is 
+            mask: mask indicating observed variables with shape (batch_size, input_dim). 1 is observed, 0 is
                 un-observed.
             If None, will be set to all 1's.
             sample_count: Number of samples to take.
-                   
+
         Returns:
             imputations: PyTorch Tensor with shape: (sample_count, batch_size, input_dim)
         """
@@ -452,7 +452,7 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
         target_mask: torch.Tensor,
         evaluate_imputation: bool,
         num_importance_samples: int,
-        **kwargs
+        **kwargs,
     ) -> torch.Tensor:
         """
         Generate a set of log importance weights/samples to estimate marginal log-likelihood.
@@ -529,7 +529,11 @@ class PVAEBaseModel(TorchModel, IModelForObjective):
             latent_prior_logvar = torch.log(torch.tensor(1.0))
 
         log_latent_prior = (-1) * gaussian_negative_log_likelihood(
-            targets=latent_samples, mean=latent_prior_mean, logvar=latent_prior_logvar, mask=None, sum_type=None,
+            targets=latent_samples,
+            mean=latent_prior_mean,
+            logvar=latent_prior_logvar,
+            mask=None,
+            sum_type=None,
         )  # Shape (num_importance_samples, batch_size, latent_dim)
         log_latent_prior = log_latent_prior.sum(axis=2)  # Shape (num_importance_samples, batch_size)
 

@@ -2,27 +2,24 @@
 from __future__ import annotations
 
 import os
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
 
-from ..models.models_factory import create_set_encoder
-
-from ..models.pvae_base_model import PVAEBaseModel
-from ..models.vae import VAE
-
-from ..utils.training_objectives import (
-    kl_divergence,
-    negative_log_likelihood,
-    gaussian_negative_log_likelihood,
-    get_input_and_scoring_processed_masks,
-)
-
+from ..preprocessing.data_processor import DataProcessor
 from ..datasets.variables import Variables
-from ..datasets.data_processor import DataProcessor
-from typing import List, Optional, Tuple
+from ..models.models_factory import create_set_encoder
 from ..models.torch_training import train_model
 from ..models.torch_training_types import LossConfig, VAELossResults
+from ..utils.training_objectives import (
+    gaussian_negative_log_likelihood,
+    get_input_and_scoring_processed_masks,
+    kl_divergence,
+    negative_log_likelihood,
+)
+from .pvae_base_model import PVAEBaseModel
+from .vae import VAE
 
 
 class PartialVAE(PVAEBaseModel):
@@ -54,7 +51,7 @@ class PartialVAE(PVAEBaseModel):
         output_dim: Optional[int] = None,
         non_linearity: Optional[str] = "ReLU",
         activation_for_continuous: Optional[str] = "Sigmoid",
-        squash_input: Optional[bool] = True,
+        squash_input: bool = True,
         init_method: Optional[str] = "default",
         **extra_set_encoder_kwargs,
     ) -> None:
@@ -124,7 +121,7 @@ class PartialVAE(PVAEBaseModel):
             },
         )
 
-        self.data_processor = DataProcessor(variables, squash_input=squash_input)
+        self.data_processor = DataProcessor(variables, unit_scale_continuous=squash_input)
 
         self._vae = VAE(
             model_id=model_id,
@@ -194,12 +191,12 @@ class PartialVAE(PVAEBaseModel):
         """
         Calculate tensor loss on a single batch of data.
 
-        TODO categorical likelihood and KL coefficients, as well as choice of IWAE vs. ELBO, should live in loss_config (part of training config), 
+        TODO categorical likelihood and KL coefficients, as well as choice of IWAE vs. ELBO, should live in loss_config (part of training config),
         not model_config.
 
         Args:
             loss_config (LossConfig): Parameters that specify how the loss is calculated.
-            input_tensors: Single batch of data and mask, given as (data, mask). The mask indicates 
+            input_tensors: Single batch of data and mask, given as (data, mask). The mask indicates
                 which data is present. 1 is observed, 0 is unobserved.
 
         """

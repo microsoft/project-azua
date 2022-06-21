@@ -1,17 +1,16 @@
 # This is required in python 3 to allow return types of the same class.
 from __future__ import annotations
-from ..models.torch_training_types import LossConfig, VAELossResults
+
+from typing import List, Optional, Tuple
 
 import torch
 
-from ..models.decoder import Decoder
-from ..models.encoder import Encoder
-
-from ..utils.training_objectives import kl_divergence, negative_log_likelihood
-
 from ..datasets.variables import Variables
-from typing import List, Tuple, Optional
-from ..models.vae import VAE
+from ..models.torch_training_types import LossConfig, VAELossResults
+from ..utils.training_objectives import kl_divergence, negative_log_likelihood
+from .decoder import Decoder
+from .encoder import Encoder
+from .vae import VAE
 
 
 # TODO: Reuse more code from base VAE class

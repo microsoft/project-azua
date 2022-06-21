@@ -1,14 +1,16 @@
 import copy
 import logging
-from ..utils.exceptions import ONNXNotImplemented
-from ..datasets.dataset import Dataset, SparseDataset
 import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-from ..models.predictive_vae import PredictiveVAE
-from ..models.marginal_vaes import MarginalVAEs
-from ..models.torch_vae import TorchVAE
+
 import torch
+
+from ..datasets.dataset import Dataset, SparseDataset
 from ..datasets.variables import Variable, Variables
+from ..models.torch_model import ONNXNotImplemented
+from .marginal_vaes import MarginalVAEs
+from .predictive_vae import PredictiveVAE
+from .torch_vae import TorchVAE
 
 
 # The model combines MarginalVAES and PredictiveVAE in one model:
@@ -20,7 +22,12 @@ class MarginalVAEsWithPredictiveVAE(TorchVAE):
     _marginal_network_save_dir = "marginal_vaes"
 
     def __init__(
-        self, model_id: str, variables: Variables, save_dir: str, device: torch.device, **model_config_dict,
+        self,
+        model_id: str,
+        variables: Variables,
+        save_dir: str,
+        device: torch.device,
+        **model_config_dict,
     ):
         # TODO: Rethink what to pass as encoder &decoder, as we currently artifically pass None for them
         categorical_likelihood_coefficient = model_config_dict["categorical_likelihood_coefficient"]
@@ -73,7 +80,13 @@ class MarginalVAEsWithPredictiveVAE(TorchVAE):
             data_without_y.to(self._device)
         )  # Each with shape (batch_size, latent_dim)
         all_encoder_mean = torch.cat([non_y_encoder_mean, y_encoder_mean], dim=1)
-        all_encoder_logvar = torch.cat([non_y_encoder_logvar, y_encoder_logvar,], dim=1)
+        all_encoder_logvar = torch.cat(
+            [
+                non_y_encoder_logvar,
+                y_encoder_logvar,
+            ],
+            dim=1,
+        )
         return (all_encoder_mean, all_encoder_logvar)
 
     def decode(self, data: torch.Tensor, *input_tensors: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -142,7 +155,13 @@ class MarginalVAEsWithPredictiveVAE(TorchVAE):
         os.makedirs(var_dir, exist_ok=True)
         logger.info("Training Predictive VAE for variable %s" % self._y_variable.name)
         predictive_vae_results = self._y_vae._train(
-            dataset, var_dir, report_progress_callback, learning_rate, batch_size, iterations, epochs,
+            dataset,
+            var_dir,
+            report_progress_callback,
+            learning_rate,
+            batch_size,
+            iterations,
+            epochs,
         )
 
         # Combine both training results, and propagate back

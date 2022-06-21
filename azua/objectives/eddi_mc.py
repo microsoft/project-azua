@@ -1,20 +1,16 @@
-from typing import List, Optional, Tuple, Dict, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 
 from ..models.imodel import IModelForObjective
-from ..objectives.eddi import EDDIObjective
+from ..utils.data_mask_utils import add_to_data, add_to_mask, restore_preserved_values
 from ..utils.training_objectives import negative_log_likelihood
-from ..utils.data_mask_utils import (
-    add_to_data,
-    add_to_mask,
-    restore_preserved_values,
-)
+from .eddi import EDDIObjective
 
 
 class EDDIMCObjective(EDDIObjective):
-    """"
+    """ "
     EDDIMC objective.
     """
 
@@ -32,21 +28,25 @@ class EDDIMCObjective(EDDIObjective):
         return "eddi_mc"
 
     def _log_ll_mc_estimate(
-        self, imputed: torch.Tensor, dec_mean: torch.Tensor, dec_logvar: torch.Tensor, summed: bool = False,
+        self,
+        imputed: torch.Tensor,
+        dec_mean: torch.Tensor,
+        dec_logvar: torch.Tensor,
+        summed: bool = False,
     ):
         """
         A helper function for computing log p(x_i|x_o, ...) using Monte Carlo estimate.
         This is computed by averaging log p(x_i|x_o, ...) over samples of x_i, and for each log p(x_i|x_o, ...),
         it is approximated by log-mean-exp(log p(x_i|z_k)) where z_k ~ q(z|x_o, ...).
 
-        Args: 
+        Args:
              imputed: imputed results/samples from p(x_i|x_o, ...), with shape (sample_count, feature_count)
              dec_mean: mean of p(x_i|z_k) for each samples of x_i and z, has the same shape as imputed
              dec_logvar: logvar of p(x_i|z_k), has the same shape as imputed
              summed: indicator for summing over feature indices, default is False
 
         Returns:
-             ll: a Monte Carlo approximation to log p(x_i|x_o, ...), with shape (sample_count, feature_count) if 
+             ll: a Monte Carlo approximation to log p(x_i|x_o, ...), with shape (sample_count, feature_count) if
                       summed=False or shape (sample_count,) if summed=True
         """
         sample_count, feature_count = imputed.shape
@@ -60,7 +60,12 @@ class EDDIMCObjective(EDDIObjective):
 
         # then compute the log p(x_i|z) where z is sampled from q(z|x_o)
         ll = -negative_log_likelihood(
-            imputed_, dec_mean_, dec_logvar_, self._model.variables, alpha=1.0, sum_type=None,
+            imputed_,
+            dec_mean_,
+            dec_logvar_,
+            self._model.variables,
+            alpha=1.0,
+            sum_type=None,
         )
         ll = ll.reshape(sample_count, sample_count, feature_count)
         # now exclude the diagonals (i.e. set them to 0), later the diagonals will be exponentiated
@@ -73,21 +78,25 @@ class EDDIMCObjective(EDDIObjective):
         return ll
 
     def _entropy_mc_approx(
-        self, imputed: torch.Tensor, dec_mean: torch.Tensor, dec_logvar: torch.Tensor, summed: bool = False,
+        self,
+        imputed: torch.Tensor,
+        dec_mean: torch.Tensor,
+        dec_logvar: torch.Tensor,
+        summed: bool = False,
     ):
         """
         A helper function for computing entropy of log p(x_i | x_o, ...) using Monte Carlo estimate.
         This is computed by averaging log p(x_i | x_o, ...) over samples of x_i, and for each log p(x_i| x_o, ...),
         it is approximated by log-mean-exp(log p(x_i|z_k)) where z_k ~ q(z | x_o, ...).
 
-        Args: 
+        Args:
              imputed: imputed results/samples from p(x_i|x_o, ...), with shape (sample_count, batch_size, feature_count)
              dec_mean: mean of p(x_i|z_k) for each samples of x_i and z, has the same shape as imputed
              dec_logvar: logvar of p(x_i|z_k), has the same shape as imputed
              summed: indicator for summing over feature indices, default is False
 
         Returns:
-             entropy: a Monte Carlo approximation to the entropy, with shape (batch_size, feature_count) if 
+             entropy: a Monte Carlo approximation to the entropy, with shape (batch_size, feature_count) if
                       summed=False or shape (batch_size,) if summed=True
         """
         entropy = []
@@ -111,7 +120,7 @@ class EDDIMCObjective(EDDIObjective):
 
         Args:
             data (shape (batch_size, proc_feature_count)): Contains processed, observed data.
-            data_mask (shape (batch_size, proc_feature_count)): Contains mask where 1 is observed in the 
+            data_mask (shape (batch_size, proc_feature_count)): Contains mask where 1 is observed in the
                 underlying data, 0 is missing.
             obs_mask (shape (batch_size, proc_feature_count)): Processed mask indicating which
                 features have already been observed (i.e. which to condition the information gain calculations on).
@@ -154,7 +163,12 @@ class EDDIMCObjective(EDDIObjective):
             # conditional entropy computation if there exist target variables
             # adding x_phi to data
             mask_o_phi = add_to_mask(self._model.variables, repeated_mask, phi_idxs)
-            x_o_phi = add_to_data(self._model.variables, repeated_data, imputed.reshape(-1, feature_count), phi_idxs,)
+            x_o_phi = add_to_data(
+                self._model.variables,
+                repeated_data,
+                imputed.reshape(-1, feature_count),
+                phi_idxs,
+            )
             (dec_mean_phi, dec_logvar_phi), _, _ = self._model.reconstruct(
                 data=x_o_phi, mask=mask_o_phi, sample=True, count=self._sample_count
             )

@@ -6,9 +6,7 @@ classes, which could be found programmatically."""
 
 import torch.nn as nn
 
-
 from .mixins import *
-
 
 __all__ = [
     "FFGLinear",

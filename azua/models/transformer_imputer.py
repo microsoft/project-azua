@@ -1,37 +1,37 @@
-from typing import Optional, Tuple, Dict
+from typing import Dict, Optional, Tuple
 
 import numpy as np
 import torch
 from torch.nn import Sigmoid
 
 from ..models.feature_embedder import FeatureEmbedder
-from ..models.transformer_set_encoder import ISAB, SAB
-from ..models.torch_model import TorchModel
-from ..models.decoder import FeaturewiseActivation
 from ..models.imodel import IBatchImputer
-from ..models.transformer_set_encoder import SetTransformer
-from ..models.torch_imputation import impute
+from ..models.torch_model import TorchModel
 from ..models.torch_training import train_model
 from ..models.torch_training_types import LossConfig, LossResults
-from ..utils.training_objectives import negative_log_likelihood, get_input_and_scoring_masks
+from ..models.transformer_set_encoder import ISAB, SAB, SetTransformer
+from ..utils.training_objectives import get_input_and_scoring_masks
 from ..utils.data_mask_utils import restore_preserved_values
+from ..utils.training_objectives import negative_log_likelihood
+from .decoder import FeaturewiseActivation
+from .torch_imputation import impute
 
 
 class TransformerImputer(TorchModel, IBatchImputer):
     """
     Transformer model for imputation.
-    
+
     This loosely imitates BERT, see https://arxiv.org/abs/1810.04805v2
-    
+
     Some differences from BERT:
-      - This model is implemented with continuous inputs in mind, not categorical 
-        ones.  Our readout layer maps the final-layer 
-        embedding of a feature to a mean and log-variance, whereas BERT's readout layer maps the final-layer 
-        embedding for a token position to logits.  This model will run with categorical variables, but might 
+      - This model is implemented with continuous inputs in mind, not categorical
+        ones.  Our readout layer maps the final-layer
+        embedding of a feature to a mean and log-variance, whereas BERT's readout layer maps the final-layer
+        embedding for a token position to logits.  This model will run with categorical variables, but might
         not handle them in the most sensible way.
       - BERT's 'positions' (of tokens in a sentence) correspond to our 'features' (columns of a table).
         BERT's sinusoidal position encoder is replaced by our FeatureEmbedder.
-    
+
 
     """
 
@@ -59,7 +59,11 @@ class TransformerImputer(TorchModel, IBatchImputer):
 
         # TODO BERT would add a many-dimensional embedding of x elementwise to the positional encoding, but this puts x in only a single channel.
         self._feature_embedder = FeatureEmbedder(
-            input_dim=input_dim, embedding_dim=embedding_dim, metadata=None, device=device, multiply_weights=False,
+            input_dim=input_dim,
+            embedding_dim=embedding_dim,
+            metadata=None,
+            device=device,
+            multiply_weights=False,
         )
         feature_embedding_dim = self._feature_embedder.output_dim
 
@@ -190,25 +194,25 @@ class TransformerImputer(TorchModel, IBatchImputer):
         **kwargs,
     ) -> torch.Tensor:
         """
-        
-        Fill in unobserved variables in a minibatch of data using a trained model. Optionally, use a vamp prior to
-        impute empty rows, and optionally replace imputed values with input values for observed features.
 
-        Assumes data is a torch.Tensor and in processed form (i.e. variables will be in their squashed ranges,
-        and categorical variables will be in one-hot form).
+         Fill in unobserved variables in a minibatch of data using a trained model. Optionally, use a vamp prior to
+         impute empty rows, and optionally replace imputed values with input values for observed features.
 
-        Args:
-            data (shape (batch_size, input_dim)): Data to be used to train the model, in processed form.
-            mask (shape (batch_size, input_dim)): Data observation mask, where observed values are 1 and unobserved 
-                values are 0.
-            sample_count: Number of imputation samples to generate.
-            vamp_prior_data: ignored by this model
-            preserve_data (bool): Whether or not to impute data already present. Defaults to True, which keeps data
-                present in input.
+         Assumes data is a torch.Tensor and in processed form (i.e. variables will be in their squashed ranges,
+         and categorical variables will be in one-hot form).
 
-       Returns:
-            imputations (torch.Tensor of shape (sample_count, batch_size, output_dim)): Input data with missing values
-                filled in.
+         Args:
+             data (shape (batch_size, input_dim)): Data to be used to train the model, in processed form.
+             mask (shape (batch_size, input_dim)): Data observation mask, where observed values are 1 and unobserved
+                 values are 0.
+             sample_count: Number of imputation samples to generate.
+             vamp_prior_data: ignored by this model
+             preserve_data (bool): Whether or not to impute data already present. Defaults to True, which keeps data
+                 present in input.
+
+        Returns:
+             imputations (torch.Tensor of shape (sample_count, batch_size, output_dim)): Input data with missing values
+                 filled in.
         """
         if vamp_prior_data is not None:
             # Theoretically we could implement this to just impute from vamp prior samples, but that
@@ -250,7 +254,12 @@ class TransformerImputer(TorchModel, IBatchImputer):
         assert mean.shape == x.shape
 
         nll = negative_log_likelihood(
-            data=x, decoder_mean=mean, decoder_logvar=logvar, variables=self.variables, alpha=0.1, mask=scoring_mask,
+            data=x,
+            decoder_mean=mean,
+            decoder_logvar=logvar,
+            variables=self.variables,
+            alpha=0.1,
+            mask=scoring_mask,
         )
         return LossResults(loss=nll, mask_sum=torch.sum(scoring_mask))
 

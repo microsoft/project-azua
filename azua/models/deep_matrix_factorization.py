@@ -3,28 +3,25 @@ from __future__ import annotations
 
 import logging
 import os
-from tqdm import trange, tqdm  # type: ignore
-from typing import Dict, List, Optional, Tuple, Union, Callable, Any
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from torch.nn import ReLU
-from torch.utils.tensorboard import SummaryWriter
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset, BatchSampler, RandomSampler, SequentialSampler, Sampler
-from scipy.sparse import issparse
-
-from ..models.torch_model import TorchModel
-from ..models.model import Model
-from ..utils.torch_utils import (
-    get_torch_device,
-    generate_fully_connected,
-)
-from ..utils.io_utils import save_json
-from ..datasets.variables import Variables
-from ..datasets.dataset import Dataset
-from ..experiment.azua_context import AzuaContext
 from dependency_injector.wiring import Provide, inject
+from scipy.sparse import issparse
+from torch.nn import ReLU
+from torch.utils.data import BatchSampler, DataLoader, RandomSampler, Sampler, SequentialSampler, TensorDataset
+from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm, trange  # type: ignore
+
+from ..datasets.dataset import Dataset
+from ..datasets.variables import Variables
+from ..experiment.azua_context import AzuaContext
+from ..models.model import Model
+from ..models.torch_model import TorchModel
+from ..utils.io_utils import save_json
+from ..utils.torch_utils import generate_fully_connected, get_torch_device
 
 
 class DeepMatrixFactorization(TorchModel):
@@ -74,11 +71,21 @@ class DeepMatrixFactorization(TorchModel):
         torch.nn.Module.__init__(self)
 
         self._user_i_fnn = generate_fully_connected(
-            input_dim_user_i, output_dim, layers_user_i, ReLU, activation=None, device=device,
+            input_dim_user_i,
+            output_dim,
+            layers_user_i,
+            ReLU,
+            activation=None,
+            device=device,
         )
 
         self._item_j_fnn = generate_fully_connected(
-            input_dim_item_j, output_dim, layers_item_j, ReLU, activation=None, device=device,
+            input_dim_item_j,
+            output_dim,
+            layers_item_j,
+            ReLU,
+            activation=None,
+            device=device,
         )
 
         self._cosine_similarity = torch.nn.CosineSimilarity(dim=1, eps=1e-6)
@@ -93,10 +100,10 @@ class DeepMatrixFactorization(TorchModel):
         Forward pass of deep matrix factorization.
 
         Args:
-            input_user_i (torch tensor of shape (batch_size, feature_count)): Data to be used for the 
+            input_user_i (torch tensor of shape (batch_size, feature_count)): Data to be used for the
                 forward pass. Corresponds to the rows of the input matrix.
 
-            input_item_j (torch tensor of shape (batch_size, item_count)): Data to be used for the 
+            input_item_j (torch tensor of shape (batch_size, item_count)): Data to be used for the
                 forward pass. Corresponds to the columns of the input matrix.
 
             mu: A small value added to make the cosine similarity non-negative.
@@ -133,7 +140,12 @@ class DeepMatrixFactorization(TorchModel):
         save_json(train_config_dict, train_config_save_path)
 
         # Run the training.
-        train_results = self._train(dataset, train_output_dir, report_progress_callback, **train_config_dict,)
+        train_results = self._train(
+            dataset,
+            train_output_dir,
+            report_progress_callback,
+            **train_config_dict,
+        )
 
         # Save train results.
         if train_results is not None:
@@ -221,7 +233,10 @@ class DeepMatrixFactorization(TorchModel):
             correct_sum = 0.0
 
             dataloader = self._create_index_dataloader_for_dmf(
-                mask, batch_size=batch_size, iterations=iterations, sample_randomly=True,
+                mask,
+                batch_size=batch_size,
+                iterations=iterations,
+                sample_randomly=True,
             )
 
             for indices_i, indices_j in tqdm(dataloader, desc="Batches", disable=is_quiet):
@@ -248,7 +263,10 @@ class DeepMatrixFactorization(TorchModel):
             training_acc = correct_sum / mask_sum
 
             dataloader_val = self._create_index_dataloader_for_dmf(
-                mask_val, batch_size=len(mask_val), iterations=-1, sample_randomly=False,
+                mask_val,
+                batch_size=len(mask_val),
+                iterations=-1,
+                sample_randomly=False,
             )
 
             loss_val, y_val, output_val = self._get_loss(data_val, *next(iter(dataloader_val)), loss_function, False)  # type: ignore
@@ -268,7 +286,10 @@ class DeepMatrixFactorization(TorchModel):
                 best_epoch = epoch
 
                 dataloader_test = self._create_index_dataloader_for_dmf(
-                    mask_test, batch_size=len(mask_test), iterations=-1, sample_randomly=False,
+                    mask_test,
+                    batch_size=len(mask_test),
+                    iterations=-1,
+                    sample_randomly=False,
                 )
 
                 loss_test, y_test, output_test = self._get_loss(
@@ -314,7 +335,7 @@ class DeepMatrixFactorization(TorchModel):
             data: Dense input data array.
             indices_i: Indices of the rowwise input for DMF.
             indices_j: Indices of the columnwise input for DMF.
-            loss_function: Type of lossfunction chosen from (MSE, BCE). 
+            loss_function: Type of lossfunction chosen from (MSE, BCE).
             is_train: boolean that tells whether current computation of loss is for training for not (inference).
         """
         with torch.set_grad_enabled(is_train):
@@ -339,7 +360,7 @@ class DeepMatrixFactorization(TorchModel):
     ) -> DataLoader:
         """
         Create dataset loader specifically for DMF.
-        
+
         Args:
             mask (numpy array of shape (batch_size, feature_count)): Corresponding mask, where observed
                 values are 1 and unobserved values are 0.
@@ -347,11 +368,14 @@ class DeepMatrixFactorization(TorchModel):
             iteration: Number of interations for a single epoch. When set to -1, every datapoints are used
                 for each epoch.
             sample_randomly: Boolean that decides whether to sample datapoints randomly or not.
-                If set to False, when sampling is done sequentially. 
+                If set to False, when sampling is done sequentially.
         """
 
         def to_tensors(
-            data_i: np.ndarray, data_j: np.ndarray, *, device: Optional[Union[str, int, torch.device]] = None,
+            data_i: np.ndarray,
+            data_j: np.ndarray,
+            *,
+            device: Optional[Union[str, int, torch.device]] = None,
         ) -> Tuple[torch.Tensor, torch.Tensor]:
             device = self._device if device is None else get_torch_device(device)
             return (
@@ -402,7 +426,7 @@ class DeepMatrixFactorization(TorchModel):
                 the form {arg_name: arg_value}. e.g. {"sample_count": 10}
             vamp_prior_data (Tuple of (data, mask)): Data to be used to fill variables if using the vamp
                 prior method. This defaults to None, in which case the vamp prior method will not be used.
-            batch_size: Batch size for loading the data. 
+            batch_size: Batch size for loading the data.
 
         Returns:
             imputed (numpy array of shape (batch_size, feature_count)): Input data with missing values filled in.

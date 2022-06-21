@@ -2,20 +2,24 @@ from abc import ABC, abstractmethod
 
 import torch
 
-from ..utils.exceptions import ONNXNotImplemented
+from .torch_model import ONNXNotImplemented
 
 
 class SetEncoderBaseModel(ABC, torch.nn.Module):
     """
     Abstract model class.
-    
+
     This ABC should be inherited by classes that transform a set of observed features to a single set embedding vector.
 
     To instantiate this class, the forward function has to be implemented.
     """
 
     def __init__(
-        self, input_dim: int, embedding_dim: int, set_embedding_dim: int, device: torch.device,
+        self,
+        input_dim: int,
+        embedding_dim: int,
+        set_embedding_dim: int,
+        device: torch.device,
     ):
         """
         Args:

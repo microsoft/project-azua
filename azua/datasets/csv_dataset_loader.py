@@ -1,10 +1,11 @@
 import io
 import logging
+import os
+import warnings
+from typing import List, Optional, Tuple, Union, cast
+
 import numpy as np
 import pandas as pd
-import os
-from typing import List, Optional, Tuple, Union, cast
-import warnings
 
 from ..datasets.dataset import Dataset
 from ..datasets.dataset_loader import DatasetLoader
@@ -44,7 +45,7 @@ class CSVDatasetLoader(DatasetLoader):
             random_state: An integer or a tuple of integers to be used as the splitting random state.
             max_num_rows: Maximum number of rows to include when reading data files.
             negative_sample: Whether to perform negative sampling after loading the dataset. Negative sampling requires
-                a file negative_sampling_levels.csv in the dataset folder, and negative samples for each row will be 
+                a file negative_sampling_levels.csv in the dataset folder, and negative samples for each row will be
                 drawn from features of a greater level than all those observed in the row.
         Returns:
             dataset: Dataset object, holding the data and variable metadata.
@@ -58,6 +59,9 @@ class CSVDatasetLoader(DatasetLoader):
             raise FileNotFoundError(f"The required data file not found: {data_path}.")
 
         data, mask = self.read_csv_from_file(data_path, max_num_rows=max_num_rows)
+        return self._make_dataset(data, mask, negative_sample, test_frac, val_frac, random_state)
+
+    def _make_dataset(self, data, mask, negative_sample, test_frac, val_frac, random_state):
 
         num_rows, _ = data.shape
         rows = list(range(num_rows))
@@ -101,7 +105,7 @@ class CSVDatasetLoader(DatasetLoader):
         Args:
             max_num_rows: Maximum number of rows to include when reading data files.
             negative_sample: Whether to perform negative sampling after loading the dataset. Negative sampling requires
-                a file negative_sampling_levels.csv in the dataset folder, and negative samples for each row will be 
+                a file negative_sampling_levels.csv in the dataset folder, and negative samples for each row will be
                 drawn from features of a greater level than all those observed in the row.
         Returns:
             dataset: Dataset object, holding the data and variable metadata.
@@ -211,7 +215,7 @@ class CSVDatasetLoader(DatasetLoader):
     @classmethod
     def _is_value_present(cls, single_value: object):
         """
-            Check whether the value is present (i.e. not missing)
+        Check whether the value is present (i.e. not missing)
         """
         if isinstance(single_value, str):
             return single_value != ""

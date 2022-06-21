@@ -1,10 +1,7 @@
-from typing import Tuple, List, Optional
-from contextlib import contextmanager
-from glob import glob
-from tempfile import NamedTemporaryFile
-from time import gmtime, strftime
 import os
-import shutil
+from glob import glob
+from time import gmtime, strftime
+from typing import List, Optional, Tuple
 
 
 def find_local_model_dir(model_dir: str, model_file_name: str = "model.pt") -> Tuple[str, str]:
@@ -52,15 +49,3 @@ def create_models_dir(output_dir: str, name: Optional[str] = None) -> str:
     models_dir = os.path.join(output_dir, dir_name, "models")
     os.makedirs(models_dir)
     return models_dir
-
-
-@contextmanager
-def backup_model_file(model_dir, model_file="model.pt"):
-    model_file_path = os.path.join(model_dir, model_file)
-    copy_path = NamedTemporaryFile(delete=False)
-    shutil.copy2(model_file_path, copy_path.name)
-    try:
-        yield copy_path
-    finally:
-        shutil.copy2(copy_path.name, model_file_path)
-        os.remove(copy_path.name)

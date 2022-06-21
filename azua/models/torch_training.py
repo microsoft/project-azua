@@ -1,30 +1,34 @@
 from __future__ import annotations
-from ..models.imodel import IModelWithReconstruction
-from typing import Union, Optional, Callable, Dict, List
+
+import logging
 import os
 import time
-import logging
-from ..utils.imputation import plot_pairwise_comparison
+from dataclasses import asdict, fields
+from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
 import torch
-from tqdm import tqdm, trange
-from torch.utils.tensorboard import SummaryWriter
-from torch.utils.data import DataLoader
+from dependency_injector.wiring import Provide, inject
 from torch.optim.lr_scheduler import LambdaLR
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm, trange
 
-from ..experiment.azua_context import AzuaContext
-from ..utils.torch_utils import create_dataloader, set_random_seeds
-from ..models.torch_training_types import LossResults, LossConfig, VAELossResults, EpochMetrics, VAEEpochMetrics
-from ..utils.helper_functions import maintain_random_state
-from ..models.torch_model import TorchModel
 from ..datasets.dataset import Dataset, SparseDataset
+from ..experiment.azua_context import AzuaContext
+from ..utils.helper_functions import maintain_random_state
+from ..utils.imputation import plot_pairwise_comparison
 from ..utils.io_utils import save_json
-from ..utils.exceptions import ValidationDataNotAvailable
 from ..utils.metrics import create_latent_distribution_plots
+from ..utils.torch_utils import create_dataloader, set_random_seeds
+from .imodel import IModelWithReconstruction
+from .torch_model import TorchModel
+from .torch_training_types import EpochMetrics, LossConfig, LossResults, VAEEpochMetrics, VAELossResults
 
-from dataclasses import asdict, fields
-from dependency_injector.wiring import inject, Provide
+
+class ValidationDataNotAvailable(Exception):
+    # Raise this when you try to do something that requires validation data, but there is no validation data
+    pass
 
 
 @inject
@@ -68,11 +72,11 @@ def train_model(
         use_lr_decay: Whether to, in addition to lr warmup, decay the lr proportionally to the inverse square root of the epoch number.
         early_stopping_patience_epochs: If validation loss does not improve for this many epochs, stop training. If None, training always continues
           for the full number of epochs. You must have validation data to use this option.
-        improvement_ratio_threshold: The threshold of improvement ratio to determine early stopping. 
+        improvement_ratio_threshold: The threshold of improvement ratio to determine early stopping.
         save_latent_plots_period_epochs: create plots of latent space parameters at this interval.
         extra_eval: extra evaluation, creates pairwise plots
-        
-        
+
+
     Returns:
         train_results (dictionary): Train loss, KL divergence, and NLL for each epoch as a dictionary.
     """

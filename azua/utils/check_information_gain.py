@@ -11,15 +11,21 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ..models.imodel import IModelForObjective
 from ..objectives.eddi import EDDIObjective
-from ..utils.torch_utils import set_random_seeds
+from ..models.imodel import IModelForObjective
 from ..utils.metrics import get_metric
+from ..utils.torch_utils import set_random_seeds
 
 
 # TODO #14087: Reuse code for checking information gain
 def test_information_gain(
-    logger, model: IModelForObjective, test_data, test_mask, vamp_prior_data, impute_config, seed=0,
+    logger,
+    model: IModelForObjective,
+    test_data,
+    test_mask,
+    vamp_prior_data,
+    impute_config,
+    seed=0,
 ):
     """
     Check information gain is approximating well.
@@ -102,11 +108,25 @@ def test_information_gain(
 
     ax1 = plt.subplot(111)
     plt.xticks(x_ticks, x_labels, rotation=45)
-    info_gain = ax1.bar(x_ticks, info_gains, width=-bar_width, align="edge", label="Info gain", color="b",)
+    info_gain = ax1.bar(
+        x_ticks,
+        info_gains,
+        width=-bar_width,
+        align="edge",
+        label="Info gain",
+        color="b",
+    )
     ax1.set_ylabel("Info gain")
 
     ax2 = ax1.twinx()
-    metric_drop = ax2.bar(x_ticks, metrics, width=bar_width, align="edge", label="Metric drop (%)", color="g",)
+    metric_drop = ax2.bar(
+        x_ticks,
+        metrics,
+        width=bar_width,
+        align="edge",
+        label="Metric drop (%)",
+        color="g",
+    )
     ax2.set_ylabel("Metric drop (%)")
 
     line = plt.axhline(y=avg_metric_drop, color="r", linestyle="--")
@@ -114,7 +134,8 @@ def test_information_gain(
     # plt.tight_layout()
     plt.title("Info gain vs Metric drop after first step")
     plt.legend(
-        [info_gain, metric_drop, line], ["Info gain", "Metric drop (%)", "Avg Metric drop (%)"],
+        [info_gain, metric_drop, line],
+        ["Info gain", "Metric drop (%)", "Avg Metric drop (%)"],
     )
 
     save_path = os.path.join(model.save_dir, "info_gain_vs_metric_drop.png")

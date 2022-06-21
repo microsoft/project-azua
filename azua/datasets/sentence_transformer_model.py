@@ -1,8 +1,7 @@
 import numpy as np
-
 from sentence_transformers import SentenceTransformer
 
-from ..datasets.itext_embedding_model import ITextEmbeddingModel
+from .itext_embedding_model import ITextEmbeddingModel
 
 
 # Sentence Transformer model from: https://huggingface.co/sentence-transformers/distilbert-base-nli-stsb-mean-tokens/tree/main

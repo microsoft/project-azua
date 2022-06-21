@@ -2,22 +2,22 @@
 from __future__ import annotations
 
 import logging
-from ..models.dependency_network_creator import DependencyNetworkCreator
-from ..models.marginal_vaes import MarginalVAEs
 import os
+from typing import Any, Callable, Dict, Optional, Tuple, Union, cast
 
+import numpy as np
 import torch
 import torch.distributions as tdist
-import numpy as np
 from scipy.sparse import csr_matrix
 
-from ..datasets.variables import Variables
 from ..datasets.dataset import Dataset, SparseDataset
-from ..models.pvae_base_model import PVAEBaseModel
+from ..datasets.variables import Variables
 from ..models.torch_training import train_model
+from ..utils.helper_functions import to_tensors
 from ..utils.io_utils import save_json
-from ..utils.data_mask_utils import to_tensors
-from typing import Dict, Optional, Tuple, Callable, Any, Union, cast
+from .dependency_network_creator import DependencyNetworkCreator
+from .marginal_vaes import MarginalVAEs
+from .pvae_base_model import PVAEBaseModel
 
 
 class VAEMixed(PVAEBaseModel):
@@ -271,7 +271,7 @@ class VAEMixed(PVAEBaseModel):
         self, z: torch.Tensor, *input_tensors: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Map from tensor z containing batch of values of marginal latent variables z_i to decoded means and logvars for 
+        Map from tensor z containing batch of values of marginal latent variables z_i to decoded means and logvars for
         the corresponding features x_i.
         """
 
@@ -302,7 +302,7 @@ class VAEMixed(PVAEBaseModel):
         Returns:
             (decoder_mean, decoder_logvar): Reconstucted variables, output from the decoder.
                 Both are shape (count, batch_size, output_dim). Count dim is removed if 1.
-            samples: Latent variable used to create reconstruction (input to the decoder). Shape (count, batch_size, 
+            samples: Latent variable used to create reconstruction (input to the decoder). Shape (count, batch_size,
                 latent_dim). Count dim is removed if 1.
             (encoder_mean, encoder_logvar): Output of the encoder. Both are shape (batch_size, latent_dim)
         """

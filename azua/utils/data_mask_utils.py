@@ -1,27 +1,11 @@
-from typing import overload, List, Tuple, Optional
 from itertools import product
+from typing import List, Optional, Tuple, overload
 
 import numpy as np
 import pandas as pd
 import torch
 
 from ..datasets.variables import Variables
-
-
-@overload
-def to_tensors(
-    array1: np.ndarray, array2: np.ndarray, device: torch.device, dtype: torch.dtype = torch.float,
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    ...
-
-
-@overload
-def to_tensors(*arrays: np.ndarray, device: torch.device, dtype: torch.dtype = torch.float) -> Tuple[torch.Tensor, ...]:
-    ...
-
-
-def to_tensors(*arrays, device, dtype=torch.float):
-    return tuple(torch.as_tensor(array, dtype=dtype, device=device) for array in arrays)
 
 
 @overload
@@ -106,7 +90,7 @@ def restore_preserved_values(
 
 def matrix_to_list(matrix: np.ndarray, row_ids: List[int], col_ids: List[int]) -> pd.DataFrame:
     """
-    Transform a dense matrix of values to a DataFrame listing all of the matrix values, with columns 
+    Transform a dense matrix of values to a DataFrame listing all of the matrix values, with columns
     (row_id, col_id, value).
     """
 

@@ -18,8 +18,6 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-Component. research_experiments/DECI/data_generation/synthetic/utils.py (obtained from https://github.com/xunzheng/notears)
-
 Open Source License/Copyright Notice. 
 
                                  Apache License
@@ -198,13 +196,6 @@ Open Source License/Copyright Notice.
       of your accepting any such warranty or additional liability.
 
    END OF TERMS AND CONDITIONS
-
-Component. baselines/castle_causal_learner.py (obtained from https://github.com/huawei-noah/trustworthyAI)
-Component. baselines/grandag.py (obtained from https://github.com/huawei-noah/trustworthyAI)
-Component. baselines/icalingam.py (obtained from https://github.com/huawei-noah/trustworthyAI)
-Component. baselines/notears_linear.py (obtained from https://github.com/huawei-noah/trustworthyAI)
-Component. baselines/notears_mlp.py (obtained from https://github.com/huawei-noah/trustworthyAI)
-Component. baselines/notears_sob.py (obtained from https://github.com/huawei-noah/trustworthyAI)
 
 Open Source License/Copyright Notice. 
 

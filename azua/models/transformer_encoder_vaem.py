@@ -1,4 +1,4 @@
-from ..models.vae_mixed import VAEMixed
+from .vae_mixed import VAEMixed
 
 
 class TransformerEncoderVAEM(VAEMixed):

@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import numpy as np
 import torch
 
-from ..datasets.variables import Variables
+from ..preprocessing.data_processor import DataProcessor
 from ..datasets.dataset import Dataset
-from ..datasets.data_processor import DataProcessor
-from typing import Dict, Optional, Tuple, Any, Callable, Union
+from ..datasets.variables import Variables
 
 
 class IModel(ABC):
@@ -166,9 +166,7 @@ class IModelWithReconstruction(IModel):
     @abstractmethod
     def reconstruct(
         self, data: torch.Tensor, mask: Optional[torch.Tensor], sample: bool = True, count: int = 1, **kwargs: Any
-    ) -> Tuple[
-        Tuple[torch.Tensor, torch.Tensor], torch.Tensor, Tuple[torch.Tensor, torch.Tensor],
-    ]:
+    ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor, Tuple[torch.Tensor, torch.Tensor],]:
         raise NotImplementedError
 
 
@@ -194,7 +192,11 @@ class IModelForObjective(IBatchImputer, IModelWithReconstruction):
 
     @abstractmethod
     def get_model_pll(
-        self, data: np.ndarray, feature_mask: np.ndarray, target_idx, sample_count: int = 50,
+        self,
+        data: np.ndarray,
+        feature_mask: np.ndarray,
+        target_idx,
+        sample_count: int = 50,
     ):
         raise NotImplementedError
 
@@ -204,37 +206,5 @@ class IModelForCausalInference(IModel):
     def get_adj_matrix(self):
         """
         Returns adjacency matrix learned as a numpy array
-        """
-        raise NotImplementedError
-
-
-class IModelForInterventions(IModel):
-    @abstractmethod
-    def sample(self):
-        """
-        Sample from distribution over observations learned by the model. Optionally modify the distribution through interventions.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def log_prob(self):
-        """
-        Evaluate log probability of observations from distribution over observations learned by the model. Optionally modify the distribution through interventions.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def cate(self):
-        """
-        Evaluate (optionally conditional) average treatment effect given the learnt causal model.
-        """
-        raise NotImplementedError
-
-
-class IModelForCounterfactuals(IModel):
-    @abstractmethod
-    def ite(self):
-        """
-        Calculate the individual treatment effect on interventions on observations X.
         """
         raise NotImplementedError

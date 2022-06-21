@@ -1,17 +1,21 @@
-import os
 import logging
+import os
 from uuid import uuid4
-from tqdm import trange
-from ..datasets.variables import Variables, Variable
 
 import matplotlib
+from tqdm import trange
+
+from ..datasets.variables import Variable, Variables
 
 matplotlib.use("agg")
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-from matplotlib.axes import SubplotBase
-import numpy as np
 from typing import Any, Dict, List, Optional, Tuple
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from matplotlib.axes import Axes, SubplotBase
+from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
 
 logger = logging.getLogger()
 
@@ -118,7 +122,11 @@ def violin_plot_imputations(
                 missing_idx.remove(i)
             else:
                 ax.violinplot(
-                    dataset=user_data_, positions=[i], showmeans=False, showmedians=False, showextrema=False,
+                    dataset=user_data_,
+                    positions=[i],
+                    showmeans=False,
+                    showmedians=False,
+                    showextrema=False,
                 )
             if continuous_variables_idx[i] in target_variables_idx:
                 ax.axvspan(i - 0.5, i + 0.5, alpha=0.1, color="y")
@@ -136,7 +144,12 @@ def violin_plot_imputations(
     inds = np.arange(0, len(continuous_list_idx))
     # plot median
     ax.scatter(
-        missing_idx, collected_stats[:, 0][missing_idx], marker="o", color="r", s=30, zorder=3,
+        missing_idx,
+        collected_stats[:, 0][missing_idx],
+        marker="o",
+        color="r",
+        s=30,
+        zorder=3,
     )
     # plot IQR range
     ax.vlines(
@@ -175,7 +188,15 @@ def violin_plot_imputations(
     ax.set_title(title + " (user_id = %d)" % user_id)
 
     legend_elements = [
-        Line2D([0], [0], marker="X", color="w", markerfacecolor="k", label="observed feature", markersize=7,)
+        Line2D(
+            [0],
+            [0],
+            marker="X",
+            color="w",
+            markerfacecolor="k",
+            label="observed feature",
+            markersize=7,
+        )
     ]
     ax.legend(handles=legend_elements)
 
@@ -186,7 +207,10 @@ def violin_plot_imputations(
             save_path = "plots"
         os.makedirs(save_path, exist_ok=True)
         plt.savefig(
-            os.path.join(save_path, plot_name + ".png"), format="png", dpi=200, bbox_inches="tight",
+            os.path.join(save_path, plot_name + ".png"),
+            format="png",
+            dpi=200,
+            bbox_inches="tight",
         )
 
     # construct return stats
@@ -241,7 +265,11 @@ def bar_plot_from_per_var(
 
     plt.clf()
     if sort_by is not None:
-        x_labels = sorted(means_per_var[sort_by].keys(), key=means_per_var[sort_by].__getitem__, reverse=True,)
+        x_labels = sorted(
+            means_per_var[sort_by].keys(),
+            key=means_per_var[sort_by].__getitem__,
+            reverse=True,
+        )
     else:
         x_labels = [key for key in means_per_var[plots[0]]]
     x_ticks = np.arange(len(x_labels))
@@ -298,7 +326,10 @@ def bar_plot_from_per_var(
         plot_name = str(uuid4())
     os.makedirs(save_path, exist_ok=True)
     plt.savefig(
-        os.path.join(save_path, plot_name + ".png"), format="png", dpi=200, bbox_inches="tight",
+        os.path.join(save_path, plot_name + ".png"),
+        format="png",
+        dpi=200,
+        bbox_inches="tight",
     )
 
 
@@ -324,7 +355,12 @@ def align_yaxis_np(ax1, ax2):
 
 
 def plot_rewards_scatter(
-    myopic_rewards, non_myopic_rewards, total_rewards, max_steps, next_qs_lists, feature_count,
+    myopic_rewards,
+    non_myopic_rewards,
+    total_rewards,
+    max_steps,
+    next_qs_lists,
+    feature_count,
 ):
     # For non myopic policy this is going to plot the rewards for each question
     plt.clf()
@@ -368,7 +404,7 @@ def plot_rewards_hist(rewards_list, save_dir):
     Plot the histograms of the rewards computed to select next question
 
     Args:
-        rewards_list: list of rewards for each steps. For each step this is a list of rewards for each user. 
+        rewards_list: list of rewards for each steps. For each step this is a list of rewards for each user.
         save_dir: Directory to save plot to.
     """
 
@@ -388,13 +424,19 @@ def plot_rewards_hist(rewards_list, save_dir):
 
                     if col_count == 1:
                         axs[step_idx].bar(
-                            list(reward_per_user.keys()), reward_per_user.values(), color="g", align="center",
+                            list(reward_per_user.keys()),
+                            reward_per_user.values(),
+                            color="g",
+                            align="center",
                         )
                         axs[step_idx].set_title("User %d, Step %d" % (user_id, step_idx))
                         axs[step_idx].set_ylabel("Reward")
                     else:
                         axs[step_idx, user_id].bar(
-                            list(reward_per_user.keys()), reward_per_user.values(), color="g", align="center",
+                            list(reward_per_user.keys()),
+                            reward_per_user.values(),
+                            color="g",
+                            align="center",
                         )
                         axs[step_idx, user_id].set_title("User %d, Step %d" % (user_id, step_idx))
                         axs[step_idx, user_id].set_ylabel("Reward")
@@ -411,15 +453,15 @@ def plot_rewards_hist(rewards_list, save_dir):
 def plot_difficulty_curves(strategy, observations, variables, difficulty, save_dir, steps=None):
     """
     Plot difficulty level for picked question over steps
-      
+
     Args:
-        strategy: objective function 
+        strategy: objective function
         observations: numpy array of shape (user_count, step_count) with observation taken at each step.
         variables: List of variables.
         difficulty: difficulty levels for each feature in the dataset.
         save_dir: Directory to save plots to.
         steps: Number of steps to plot. Defaults to None - all steps are plotted.
-    
+
     """
     plt.clf()
     plt.figure(figsize=(6.4, 4.8))
@@ -447,7 +489,14 @@ def plot_difficulty_curves(strategy, observations, variables, difficulty, save_d
 
     # Plot average difficulty for each step across students
     plt.plot(
-        xs, average_difficulty, linestyle="-", marker="o", color="red", alpha=1.0, zorder=1, label="Average difficulty",
+        xs,
+        average_difficulty,
+        linestyle="-",
+        marker="o",
+        color="red",
+        alpha=1.0,
+        zorder=1,
+        label="Average difficulty",
     )
 
     plt.legend()
@@ -459,7 +508,7 @@ def plot_difficulty_curves(strategy, observations, variables, difficulty, save_d
 def plot_quality_curves(strategy, observations, variables, quality, save_dir, steps=None):
     """
     Plot quality level for picked question over steps
-    
+
     Args:
         strategy: objective function
         observations: numpy array of shape (user_count, step_count) with observation taken at each step.
@@ -495,7 +544,14 @@ def plot_quality_curves(strategy, observations, variables, quality, save_dir, st
 
     # Plot average quality for each step across students
     plt.plot(
-        xs, average_quality, linestyle="-", marker="o", color="red", alpha=1.0, zorder=1, label="Average quality",
+        xs,
+        average_quality,
+        linestyle="-",
+        marker="o",
+        color="red",
+        alpha=1.0,
+        zorder=1,
+        label="Average quality",
     )
 
     plt.legend()
@@ -506,14 +562,14 @@ def plot_quality_curves(strategy, observations, variables, quality, save_dir, st
 
 def plot_target_curves(imputed_values_per_strategy, save_dir):
     """
-    Plot the target value Y per step 
+    Plot the target value Y per step
 
     Args:
         imputed_values_per_strategy (dict): {strategy: np array with shape
             (seed_count, user_count, step_count, variable_count)
             or (user_count, step_count, variable_count)}
         save_dir (str): Directory to save plots to.
- 
+
     """
     plt.clf()
     plt.figure(figsize=(6.4, 4.8))
@@ -573,14 +629,14 @@ def plot_target_curves(imputed_values_per_strategy, save_dir):
 
 def plot_mean_target_curves(imputed_values_per_strategy, max_steps, save_dir):
     """
-    Plot the mean target value per step across students 
+    Plot the mean target value per step across students
 
     Args:
         imputed_values_per_strategy (dict): {strategy: np array with shape
             (seed_count, user_count, step_count, variable_count)
             or (user_count, step_count, variable_count)}
         save_dir (str): Directory to save plots to.
- 
+
     """
     plt.clf()
     plt.figure(figsize=(6.4, 4.8))
@@ -606,12 +662,7 @@ def plot_mean_target_curves(imputed_values_per_strategy, max_steps, save_dir):
             metric_per_step[step_idx] = np.mean(imputed_for_step, axis=1)
             stderr_per_step[step_idx] = np.std(imputed_for_step, axis=1)
 
-        if strategy == "rand_im":
-            color = "black"
-            label = "RAND"
-            linestyle = "-"
-            marker = "o"
-        elif strategy == "ei":
+        if strategy == "ei":
             color = "red"
             label = "EI"
             linestyle = "dashed"
@@ -621,30 +672,20 @@ def plot_mean_target_curves(imputed_values_per_strategy, max_steps, save_dir):
             label = "B_EI"
             linestyle = "dotted"
             marker = "*"
-        elif strategy == "bin":
-            color = "orange"
-            label = "Binoculars"
-            linestyle = "--"
-            marker = "s"
-        elif strategy == "nm_ei":
-            color = "green"
-            label = "NM_EI"
-            linestyle = "dashdot"
-            marker = "v"
-        elif strategy == "gls":
-            color = "yellow"
-            label = "Glasses"
-            linestyle = "dotted"
-            marker = "v"
         else:
             color = "pink"
-            label = "K_EI"
+            label = "Other"
             linestyle = "-"
             marker = "o"
 
         mean_path = np.mean(metric_per_step, axis=1)
         plt.plot(
-            steps_to_plot, mean_path, color=color, label=label, linestyle=linestyle, marker=marker,
+            steps_to_plot,
+            mean_path,
+            color=color,
+            label=label,
+            linestyle=linestyle,
+            marker=marker,
         )
 
         plt.legend()
@@ -674,27 +715,15 @@ def plot_time_results_hist(imputed_values_per_strategy, max_steps, save_dir):
 
         y_per_time = np.mean(np.mean(last_imputed_values, axis=1))
 
-        if strategy == "rand_im":
-            color = "black"
-            label = "RAND"
-        elif strategy == "ei":
+        if strategy == "ei":
             color = "red"
             label = "EI"
         elif strategy == "b_ei":
             color = "blue"
             label = "B_EI"
-        elif strategy == "bin":
-            color = "orange"
-            label = "Binoculars"
-        elif strategy == "nm_ei":
-            color = "green"
-            label = "NM_EI"
-        elif strategy == "gls":
-            color = "yellow"
-            label = "Glasses"
         else:
             color = "pink"
-            label = "K_EI"
+            label = "Other"
 
         bp = plt.boxplot(
             y_per_time,
@@ -719,7 +748,10 @@ def plot_time_results_hist(imputed_values_per_strategy, max_steps, save_dir):
 
 
 def plot_training_metrics(
-    results_dict: Dict[str, List[float]], variable: Variable, save_dir: str, metric: str = "loss",
+    results_dict: Dict[str, List[float]],
+    variable: Variable,
+    save_dir: str,
+    metric: str = "loss",
 ):
     """
     Plot training metrics for marginal networks of VAEM
@@ -747,3 +779,26 @@ def plot_training_metrics(
         plt.plot(results_dict[m])
         plt.title(m.upper() + " " + str(variable.name))
         plt.savefig(save_name, format="png", dpi=200, bbox_inches="tight")
+
+
+def plot_nonzero_coverage(df: pd.DataFrame) -> Tuple[Figure, Axes]:
+    """Plot horizontal bars showing the fraction of nonzero values by column.
+
+    Args:
+        df: DataFrame for plot
+
+    Returns:
+        Figure: Figure of plot
+        Axes: Axes of plot
+    """
+    coverage = (np.count_nonzero(df, axis=0) - df.isna().sum(0).values) / len(df)
+    order = np.argsort(coverage)
+    coverage = coverage[order]
+    labels = df.columns[order]
+
+    fig, ax = plt.subplots(figsize=[16, 12])
+    col_map = plt.get_cmap("tab20_r")
+    ax.barh(labels, coverage, color=col_map.colors, edgecolor="maroon")
+    ax.set_xlabel("Coverage", fontsize=15)
+    ax.set_ylabel("Treatments", fontsize=15)
+    return fig, ax

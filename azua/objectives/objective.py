@@ -33,7 +33,11 @@ class Objective(ABC):
 
     @abstractmethod
     def get_next_questions(
-        self, data: np.ndarray, data_mask: np.ndarray, obs_mask: np.ndarray, question_count: int = 1,
+        self,
+        data: np.ndarray,
+        data_mask: np.ndarray,
+        obs_mask: np.ndarray,
+        question_count: int = 1,
     ):
         """
         Get the id of the next best question(s) to query, using a trained model.
@@ -41,7 +45,7 @@ class Objective(ABC):
 
         Args:
             data (numpy array of shape (batch_size, input_dim)): partially observed data in processed form.
-            data_mask (numpy array of shape (batch_size, input_dim)): Contains mask where 1 is observed in the 
+            data_mask (numpy array of shape (batch_size, input_dim)): Contains mask where 1 is observed in the
                 underlying data, 0 is missing.
             obs_mask (numpy array of shape (batch_size, input_dim)): Contains mask where 1 indicates a feature that has
                 been observed before or during active learning, 0 a feature that has not yet been observed and could be

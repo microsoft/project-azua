@@ -2,17 +2,18 @@
 
 ## 0. Overview
 
-Humans make tens of thousands of decisions every day. Project Azua aims to develop machine learning solutions for efficient decision making that demonstrate human expert-level performance across all domains. We develop advanced machine learning solutions in causal discovery, causal inference, and Bayesian experimental design using modern (probabilistic) deep learning methods. Our conceptual framework is to divide decisions into two types: "best next question" and "best next action". 
+Humans make tens of thousands of decisions every day. Project Azua aims to develop machine learning solutions for efficient decision making that demonstrate human expert-level performance across all domains. Our conceptual framework is to divide decisions into two types: "best next question" and "best next action". 
+
+For **Causal ML** and **DECI** see the new [repo](https://github.com/microsoft/causica)
 
 In daily life, one type of decision we make relates to information gathering for "get to know" decisions; for example, a medical doctor takes a medical test to decide the correct diagnosis for a patient. Humans are very efficient at gathering information and drawing the correct conclusion, while most deep learning methods require significant amounts of training data. Thus, the first part of project Azua focuses on enabling machine learning solutions to gather personalized information, allowing the machine to know the "best next question" and make a final judgment efficiently [1,2,6].
 Our technology for "best next question" decisions is driven by state-of-the-art algorithms for Bayesian experimental design and active learning.
 
-The second type of decision made in many domains is intervention, which can be summarised as selecting the "best next action ". For example, a business owner needs to decide which action will lead to greater customer satisfaction; a teacher needs to decide which exercise to give students to help them learn most effectively. Humans are very efficient at making such decisions, primarily due to our causal reasoning abilities. Thus, in project Azua, we develop end-to-end causal inference methods which use existing data to perform  causal discovery and compute causal inference quantities such as (conditional) average treatment effect [8,3]. We not only provide our deep learning-based framework, but we also connect other existing methods such as [DoWhy](https://microsoft.github.io/dowhy/) and [EconML](https://econml.azurewebsites.net/) as alternatives, allowing users to choose the most suitable methods for their applications. 
-
-With these decision-making goals, one can use our codebase in an end-to-end way for decision-making. We also provide the flexibility to use any core functionalities such as missing value prediction, best next question, causal discovery, causal inference, etc, separately depending on the users' needs.     
+With these decision-making goals, one can use our codebase in an end-to-end way for decision-making. We also provide the flexibility to use any core functionalities such as missing value prediction, best next question, etc, separately depending on the users' needs.     
 
 Our technology has enabled personalized decision-making in real-world systems, combining multiple advanced research methodologies in simple APIs suitable 
 for research development in the research community, and commercial use by data scientists and developers. For commercial applications, please reach out to us at  azua-request@microsoft.com  if you are interested in using our technology as a service. 
+
 
 ### References
 
@@ -22,27 +23,21 @@ If you have used the models in our code base, please consider to cite the corres
 
 [2], **(VAEM)** Chao Ma, Sebastian Tschiatschek, Richard Turner, José Miguel Hernández-Lobato, and Cheng Zhang. "VAEM: a Deep Generative Model for Heterogeneous Mixed Type Data." Advances in Neural Information Processing Systems 33 (2020).
 
-[3], **(VISL)** Pablo Morales-Alvarez, Wenbo Gong, Angus Lamb, Simon Woodhead, Simon Peyton Jones, Nick Pawlowski, Miltiadis Allamanis, Cheng Zhang, "Simultaneous Missing Value Imputation and Structure Learning with Groups", [ArXiv preprint](https://arxiv.org/pdf/2110.08223.pdf)
+[3], **(Eedi dataset)** Zichao Wang, Angus Lamb, Evgeny Saveliev, Pashmina Cameron, Yordan Zaykov, Jose Miguel Hernandez-Lobato, Richard E. Turner et al. "Results and Insights from Diagnostic Questions: The NeurIPS 2020 Education Challenge." arXiv preprint arXiv:2104.04034 (2021).
 
-[4], **(Eedi dataset)** Zichao Wang, Angus Lamb, Evgeny Saveliev, Pashmina Cameron, Yordan Zaykov, Jose Miguel Hernandez-Lobato, Richard E. Turner et al. "Results and Insights from Diagnostic Questions: The NeurIPS 2020 Education Challenge." arXiv preprint arXiv:2104.04034 (2021).
+[4], **(CORGI:)** Jooyeon Kim, Angus Lamb, Simon Woodhead, Simon Pyton Jones, Cheng Zhang, and Miltiadis Allamanis. CORGI: Content-Rich Graph Neural Networks with Attention. In GReS: Workshop on Graph Neural Networks for Recommendation and Search, 2021
 
-[5], **(CORGI:)** Jooyeon Kim, Angus Lamb, Simon Woodhead, Simon Pyton Jones, Cheng Zhang, and Miltiadis Allamanis. CORGI: Content-Rich Graph Neural Networks with Attention. In GReS: Workshop on Graph Neural Networks for Recommendation and Search, 2021
+[5], **(GINA)** Chao Ma and Cheng Zhang. Identifiable Generative Models for Missing Not at Random Data Imputation. In Advances in Neural Information Processing Systems 34 (2021)
 
-[6], **(GINA)** Chao Ma and Cheng Zhang. Identifiable Generative Models for Missing Not at Random Data Imputation. In Advances in Neural Information Processing Systems 34 (2021)
-
-[7], **(Transformer PVAE, Transformer encoder PVAE, Rupert)** Sarah Lewis, Tatiana Matejovicova, Angus Lamb, Yordan Zaykov, 
+[6], **(Transformer PVAE, Transformer encoder PVAE, Rupert)** Sarah Lewis, Tatiana Matejovicova, Angus Lamb, Yordan Zaykov, 
 Miltiadis Allamanis, and Cheng Zhang. Accurate Imputation and Efficient Data Acquisition with 
 Transformer-based VAEs.  In NeurIPS: Workshop on Deep Generative Models and Applications (2021)
-
-[8], **(DECI)** Tomas Geffner, Javier Antoran, Adam Foster, Wenbo Gong, Chao Ma, Emre Kiciman, Amit Sharma, Angus Lamb, Martin Kukla, Nick Pawlowski, Miltiadis Allamanis, Cheng Zhang. Deep End-to-end Causal Inference. Arxiv preprint 2202.02195 (2022)
 
 
 ### Resources
 
 For quick introduction to our work regarding best next question, checkout [our NeurIPS 2020 tutorial, from 2:17:11](https://slideslive.com/38943571/advances-in-approximate-inference).
 For a more in-depth technical introduction of deep genertive model for missing value prediction and best next question, checkout [our ICML 2020 tutorial](https://slideslive.com/38931299/efficient-missingvalue-acquisition-with-variational-autoencoders?ref=account-folder-55866-folders)
-For technical discussion regarding best next action and end-to-end causal inference, checkout the [talk at Cambridge ELLIS seminar](https://www.youtube.com/watch?v=_zdQmbNJtqk&t=2s) 
-For Microsoft wise causal ML research vision, check out our [openning talk](https://www.microsoft.com/en-us/research/video/research-talk-challenges-and-opportunities-in-causal-machine-learning/) in Microsoft Research Summit.  
 
 ## 1. Core functionalities
 
@@ -80,15 +75,6 @@ The underlying causal relationships behind data crucial for real-world decision 
 structures under incomplete information is difficult. Azua provide state-of-the-art solution based on graph neural nets,
  which is able to tackle missing value imputation and causal discovery problems at the same time.
 
-
-### 1.4 Causal inference given causal graph (CI)
-
-Once the causal structure of our problem is known,
-we can estimate average treatment effects (ATE) and conditional average treatment effects (CATE) using the DECI model. DECI supports non-linear relationships among variables of interest and is robust to the pressence of non-Gaussian noise.
-
-### 1.5 End-to-End causal inference (E2E)
-
-Azua supports simultaneous learning of the causal structure underlying our observations and the functional relationship between variables using the DECI model. This allows for simultaneous Causal Discovery (CD) and Causal Inference (CI), which we term End-to-End inference. Optionally, prior knowledge can be leveraged to aid the causal doscovery step.
 
 ## 2. Getting started
 
@@ -145,10 +131,9 @@ Model | Description | Functionalities | Example usage
 [VAE Mixed (VAEM)](azua/models/vae_mixed.py)                                    | An extension of PVAE for <br /> heterogeneous mixed type data.  <br /> See [our paper](https://papers.nips.cc/paper/2020/hash/8171ac2c5544a5cb54ac0f38bf477af4-Abstract.html). | MVP, BNQ | `python run_experiment.py bank -mt vaem_predictive -a sing` 
 [MNAR Partial VAE (MNAR-PVAE)](azua/models/mnar_pvae.py)                        | An extension of VAE that <br /> handles missing-not-at-random  <br /> (MNAR) data.  <br /> More details in the future. | MVP, BNQ | `python run_experiment.py yahoo -mt mnar_pvae -i` 
 [Bayesian Partial VAE (B-PVAE)](azua/models/bayesian_pvae.py)                   | PVAE with a Bayesian treatment. | MVP, BNQ | `python run_experiment.py boston -mt bayesian_pvae -a eddi rand`
-[Transformer PVAE](azua/models/transformer_pvae.py)                             | A PVAE in which the encoder <br />  and decoder contain transformers.  <br /> See [our paper](**TODO**)| MVP, BNQ | `python run_experiment.py boston -mt transformer_pvae -a eddi rand`
-[Transformer encoder PVAE](azua/models/transformer_encoder_pvae.py)             | A PVAE in which the encoder <br /> contains a transformer.  <br /> See [our paper](**TODO**) | MVP, BNQ | `python run_experiment.py boston -mt transformer_encoder_pvae -a eddi rand`
-[Transformer imputer/Rupert](azua/models/transformer_imputer.py)                | A simple transformer model. <br /> See [our paper](**TODO**) | MVP, BNQ | `python run_experiment.py boston -mt transformer_imputer -a variance rand`
-[VISL](azua/models/visl.py)                                               | Causal discovery from data with <br />  missing features <br />  and imputation. [link to paper](https://arxiv.org/abs/2110.08223/). | MVP, CD | `python run_experiment.py eedi_task_3_4_topics -mt visl`
+[Transformer PVAE](azua/models/transformer_pvae.py)                             | A PVAE in which the encoder <br />  and decoder contain transformers.  <br /> See [our paper](https://openreview.net/pdf?id=N_OwBEYTcKK)| MVP, BNQ | `python run_experiment.py boston -mt transformer_pvae -a eddi rand`
+[Transformer encoder PVAE](azua/models/transformer_encoder_pvae.py)             | A PVAE in which the encoder <br /> contains a transformer.  <br /> See [our paper](https://openreview.net/pdf?id=N_OwBEYTcKK) | MVP, BNQ | `python run_experiment.py boston -mt transformer_encoder_pvae -a eddi rand`
+[Transformer imputer/Rupert](azua/models/transformer_imputer.py)                | A simple transformer model. <br /> See [our paper](https://openreview.net/pdf?id=N_OwBEYTcKK) | MVP, BNQ | `python run_experiment.py boston -mt transformer_imputer -a variance rand`
 [CoRGi](azua/models/corgi.py)                                                   |  GNN-based imputation with <br /> emphasis on item-related data  <br /> based on [Kim et al.](https://toappear) | MVP | See 5.7.1-5.7.4 for details. 
 [Graph Convolutional Network (GCN)](azua/models/graph_convolutional_network.py) |  GNN-based imputation based <br /> on [Kipf et al.](https://arxiv.org/abs/1609.02907) | MVP | See *5.7.2-5.7.4* for details. 
 [GRAPE](azua/models/grape.py)                                                   |  GNN-based imputation based <br /> on [You et al.](https://snap.stanford.edu/grape/) | MVP | See *5.7.2-5.7.4* for details. 
@@ -162,7 +147,6 @@ Model | Description | Functionalities | Example usage
 [Majority vote](azua/baselines/majority_vote.py)                                | Replace missing value with  <br /> majority vote. | MVP | `python run_experiment.py boston -mt majority_vote`
 [MICE](azua/baselines/mice.py)                                                  | Multiple Imputation by  <br /> Chained Equations,  <br /> see [this paper](https://onlinelibrary.wiley.com/doi/full/10.1002/sim.4067) | MVP | `python run_experiment.py boston -mt mice`
 [MissForest](azua/baselines/missforest.py)                                      | An iterative imputation method  <br /> (missForest) based on random forests.  <br /> See [this paper](https://academic.oup.com/bioinformatics/article/28/1/112/219101) | MVP | `python run_experiment.py boston -mt missforest` 
-[DECI](azua/models/deci/deci.py)                                      | An End-to-End causal inference method  that uses deep learning to capture functional relationships among variabbles while learning a distribution over causal graphs. See [Our paper](https://arxiv.org/abs/2202.02195) | CD, CI, E2E | `python run_experiment.py csuite_symprod_simpson -mt deci_spline -dc azua/configs/dataset_config_causal_dataset.json -c -te`
 
 ## Objectives
 
@@ -198,7 +182,6 @@ We provide `variables.json` files and model configurations for the following dat
   * eedi_task_3_4_topics: The data for the last two tasks. To produce the experimental results in VISL, binary answers are used. It has additional topic metadata.
 * Neuropathic Pain Diagnosis Simulator Dataset: [webpage](https://github.com/TURuibo/Neuropathic-Pain-Diagnosis-Simulator)
   * denoted as "Neuropathic_pain" below. You need to use the simulator to generate the data.
-* Synthetic relationships: synthetic data generated by sampling the underlying true causal structure, and then, generating the data points from it.
 * Yahoo [webpage](https://consent.yahoo.com/v2/collectConsent?sessionId=3_cc-session_f8d7b45f-c09b-473f-99c6-d27adf00f176)
 * Goodreads [webpage](https://github.com/bahramJannesar/GoodreadsBookDataset): Refer to section 5.7.3 for more details.
 
@@ -251,40 +234,6 @@ Iris | 2.8 | -- | -- | -- | --
 Kin8nm | 1.28 | -- | -- | -- | --
 Wine | 2.14 | 2.45 | -- | -- | --
 Yacht | 0.94 | 0.9 | -- | -- | --
-
-### Causal discovery (CD)
-
-We procide F1 score for adjacency and orientation to measure the causal discovery results. Please refer to VISL paper for details.
-
-<table>
-    <thead>
-        <tr>
-            <th>Dataset</th>
-            <th colspan=2>VISL</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td></td>
-            <td>Adjacency.F1</td>
-            <td>Orientation.F1</td>
-        </tr>
-        <tr>
-            <td>Neuropathic_pain</td>
-            <td>0.28</td>
-            <td>0.26</td>
-        </tr>
-        <tr>
-            <td>Synthetic_relationships</td>
-            <td>0.82</td>
-            <td>0.47</td>
-        </tr>
-    </tbody>
-</table>
-
-
-### End-to-End Causal Inference (ECI)
-You can find results for causal discovery (CD), causal inference (CI) and end-to-end causal inference (ECI) using our DECI model and baseline models in the [DECI results notebook](research_experiments/DECI/box_plots.ipynb). See our [dedicated DECI README](doc/README_DECI.md) for instructions to reproduce all results.
 
 ## 5. Model details
 
@@ -506,15 +455,9 @@ Implementation-wise, B-PVAE is based on Bayesianize, a lightweight Bayesian neur
 which allows easy conversion of neural networks in existing scripts to its Bayesian version with minimal changes. For 
 more details, please see our [github repo](https://github.com/microsoft/bayesianize).
 
-### 5.6 VISL 
+### 5.6 CoRGi, Graph Convolutional Network (GCN), GRAPE, Graph Convolutional Matrix Completion (GC-MC), and GraphSAGE
 
-Missing values constitute an important challenge in real-world machine learning for both prediction and causal discovery tasks. However, only few methods in causal discovery can handle missing data in an efficient way, while existing imputation methods are agnostic to causality. In this work we propose VISL, a novel approach to simultaneously tackle missing value imputation and causal discovery efficiently with deep learning. Particularly, we propose a generative model with a structured latent space and a graph neural network-based architecture, scaling to large number of variables. Moreover, our method can discover relationship between groups of variables which is useful in many real-world applications. VISL shows improved performance compared to popular and recent approaches in both missing value imputation and causal discovery.
-
-For more information, please refer to the [paper] ((https://arxiv.org/pdf/2110.08223.pdf).
-
-### 5.7 CoRGi, Graph Convolutional Network (GCN), GRAPE, Graph Convolutional Matrix Completion (GC-MC), and GraphSAGE
-
-#### 5.7.1 CoRGi and baselines
+#### 5.6.1 CoRGi and baselines
 
 **[CoRGi](azua/models/corgi.py)** 
 
@@ -558,7 +501,7 @@ During message aggregation, GAT uses the attention mechanism to allow the target
 distinguish the weights of multiple messages from the source nodes for aggregation. For more details, please refer to 
 [this paper](https://arxiv.org/abs/1710.10903). 
 
-#### 5.7.2 Different node initializations
+#### 5.6.2 Different node initializations
 
 All GNN models allow different kinds of node initializations.
 This can be done by modifying the model config file.
@@ -575,7 +518,7 @@ For example, the test performance of `GCN Init: NeuralBOW` in Table 2 of the pap
 
 with `"node_init": "neural_bow_init"` in te corresponding model config file.
 
-#### 5.7.3 Datasets
+#### 5.6.3 Datasets
 
 CoRGi operate on content-augmented graph data.
 
@@ -603,7 +546,7 @@ The pre-processing codes for the datasets to be used for CoRGi can be found at:
 research_experiments/eedi/
 ```
 
-#### 5.7.3 Running Corgi
+#### 5.6.4 Running Corgi
 
 To run the CoRGi code with Eedi dataset, first locate the preprocessed data at
 
@@ -619,39 +562,6 @@ python run_experiment.py eedi -mt corgi
 
 This can be done with different datasets and different GNN models. The train and validation performances can be tracked 
 using tensorboard which is logged under the `runs` directory. Also, the trained model is saved with `.pt` extension.
-
-### 5.8 DECI: Deep End-to-End Causal Inference
-
-**Note**: full details of running DECI models to reproduce all experiments in the [paper](https://arxiv.org/pdf/2202.02195.pdf) can be found in the [dedicated DECI README](doc/README_DECI.md).
-
-Real-world data-driven decision making requires causal inference to ensure the validity of drawn conclusions. However, it is very uncommon to have a-priori perfect knowledge of the causal relationships underlying relevant variables. DECI allows the end user to perform causal inference without having complete knowledge of the causal graph. This is done by combining the causal discovery and causal inference steps in a single model. DECI takes in observational data and outputs ATE and CATE estimates. 
-
-For more information, please refer to the [paper] (https://arxiv.org/abs/2202.02195).
-
-**Model Description**
-
-DECI is a generative model that employs an additive noise structural equation model (ANM-SEM) to capture the functional relationships among variables and exogenous noise, while simultanously learning a variational distribution over causal graphs. Specifically, the relationships among variables are captured with flexible neural networks while the exogenous noise is modelled as either a Gaussian or spline-flow noise model. The SEM is reversible, meaning that we can generate an observation vector from an exogenous noise vector through forward simulation and given a observation vector we can recover a unique corresponding exogenous noise vector. In this sense, the DECI SEM can be seen as a flow from exogenouse noise to observations. We employ a mean-field approximate posterior distribution over graphs, which is learnt together with the functional relationships among variables by optimising an evidence lower bound (ELBO). Additionally, DECI supports learning under partially observed data.
-
-**Simulation-based Causal Inference**
-
-DECI estimates causal quantities (ATE / CATE) by applying the relevant interventions to its learnt causal graph (i.e. mutilating incoming edges to intervened variables) and then sampling from the generative model. This process involves first sampling a vector of exogenous noise from the learnt noise distribution and then forward simulating the SEM until an observation vector is obtained. ATE can be computed via estimating an expectation over the effect variable of interest using MonteCarlo samples of the intervened distribution of observations. DECI can not simulate samples from conditional intervened distributions directly. However, we can learn an estimator of the conditional intervened distrbution from samples of the joint distribution of conditioning variables and effect variables. Specifically, we use radial-basis-function kernel regression to evaluate expectations in the CATE formula.
-
-
-**Specifying a prior over graphs**
-
-If some a-prior knowledge of the causal graph is available, it can be incorporated as a prior for DECI by using the `informed_deci` model. The a-prior graph should is passed to DECI as a part of the `CausalDataset`. The hyperparameters used to specify strenght of beleif in the prior graph are discussed below. 
-
-
-**Specifying a noise model**
-
-If the exogenous noise is known to be Gaussian, we reccomend employing the `deci_gaussian` model. This model has its Gaussian exogenous noise distribution mean set to 0 while its variance is learnt.
-
-In the more general setting, we reccomend using `deci_spline`. Here the exogenous noise distribution is a flexible spline flow that is learnt from the data. This model provides most gains in heavy-tailed noise settings, where the Gaussian model is at risk of overfitting to outliers. 
-
-##### Reproducing DECI results
-
-For full details on running DECI and reproducing the results in our paper, see the [dedicated DECI README](doc/README_DECI.md).
-
 
 ## 6. Other engineering details
 

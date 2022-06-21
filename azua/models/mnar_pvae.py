@@ -1,23 +1,25 @@
-import torch
-from .partial_vae import PartialVAE
-from ..models.torch_model import TorchModel
-from ..models.decoder import Decoder
-from ..models.encoder import Encoder
-from ..models.mask_net import MaskNet
-from typing import Optional, Tuple
-from ..utils.training_objectives import kl_divergence, negative_log_likelihood, gaussian_negative_log_likelihood
-from ..datasets.variables import Variables, Variable
-import torch.distributions as tdist
-import numpy as np
-from torch.nn import Identity
 import warnings
+from typing import Optional, Tuple
+
+import numpy as np
+import torch
+import torch.distributions as tdist
+from torch.nn import Identity
+
+from ..datasets.variables import Variable, Variables
+from ..models.torch_model import TorchModel
+from ..utils.training_objectives import gaussian_negative_log_likelihood, kl_divergence, negative_log_likelihood
+from .decoder import Decoder
+from .encoder import Encoder
+from .mask_net import MaskNet
+from .partial_vae import PartialVAE
 
 
 class MNARPartialVAE(PartialVAE, TorchModel):
     """
-    Implements MNAR Partial VAE.
-    Basic introduction: see https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/_layouts/OneNote.aspx?id=%2Fpersonal%2Fchezha_microsoft_com%2FDocuments%2FNotebooks%2FMinDataAI_Master&wd=target%28New%20Section%20Group%2FMNAR%20code%20design.one%7C18B31B8B-1108-4985-9FF4-E903B5AA90A4%2F%29
-onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Documents/Notebooks/MinDataAI_Master/New%20Section%20Group/MNAR%20code%20design.one#section-id={18B31B8B-1108-4985-9FF4-E903B5AA90A4}&end
+        Implements MNAR Partial VAE.
+        Basic introduction: see https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/_layouts/OneNote.aspx?id=%2Fpersonal%2Fchezha_microsoft_com%2FDocuments%2FNotebooks%2FMinDataAI_Master&wd=target%28New%20Section%20Group%2FMNAR%20code%20design.one%7C18B31B8B-1108-4985-9FF4-E903B5AA90A4%2F%29
+    onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Documents/Notebooks/MinDataAI_Master/New%20Section%20Group/MNAR%20code%20design.one#section-id={18B31B8B-1108-4985-9FF4-E903B5AA90A4}&end
     """
 
     def __init__(self, *args, mask_net_config, prior_net_config, **kwargs) -> None:
@@ -279,9 +281,7 @@ onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Doc
 
     def _generate_from_prior_net(
         self, data: torch.Tensor, mask: torch.Tensor, sample: bool = True, count: int = 1
-    ) -> Tuple[
-        Tuple[torch.Tensor, torch.Tensor], torch.Tensor, Tuple[torch.Tensor, torch.Tensor],
-    ]:
+    ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor, Tuple[torch.Tensor, torch.Tensor],]:
         """
         reconstrutc samples from prior net, rather than from encoder.
 
@@ -344,7 +344,11 @@ onenote:https://microsofteur-my.sharepoint.com/personal/chezha_microsoft_com/Doc
         )
 
     def _generate_from_inference_net(
-        self, data: torch.Tensor, mask: Optional[torch.Tensor], sample: bool = True, count: int = 1,
+        self,
+        data: torch.Tensor,
+        mask: Optional[torch.Tensor],
+        sample: bool = True,
+        count: int = 1,
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Reconstruct data by passing them through the VAE.

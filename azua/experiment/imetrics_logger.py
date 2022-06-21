@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Any, Optional, Dict
+from typing import Any, Dict, List, Optional
 
 
 class IMetricsLogger(ABC):

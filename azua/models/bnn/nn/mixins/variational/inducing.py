@@ -1,15 +1,13 @@
 from abc import abstractmethod
 
 import torch
+import torch.distributions as dist
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.distributions as dist
 
-
-from .base import VariationalMixin
-from .utils import EPS, prod, inverse_softplus, vec_to_chol
 from ....distributions import MatrixNormal
-
+from .base import VariationalMixin
+from .utils import EPS, inverse_softplus, prod, vec_to_chol
 
 __all__ = ["InducingDeterministicMixin", "InducingMixin"]
 

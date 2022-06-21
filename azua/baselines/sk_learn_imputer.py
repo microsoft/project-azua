@@ -1,13 +1,14 @@
 from __future__ import annotations  # Needed to support method returning instance of its parent class until Python 3.10
-from typing import Any, Dict, Union, TypeVar, Type
+
+import os
+from typing import Any, Dict, Type, TypeVar, Union
 
 import numpy as np
-import os
 
-from ..models.model import Model
-from ..models.imodel import IModelForImputation
 from ..datasets.variables import Variables
-from ..utils.io_utils import read_pickle, save_pickle, save_json
+from ..models.imodel import IModelForImputation
+from ..models.model import Model
+from ..utils.io_utils import read_pickle, save_json, save_pickle
 
 BASELINES = [
     "mean_imputing",

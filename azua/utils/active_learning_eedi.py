@@ -1,23 +1,26 @@
 import os
-import pandas as pd
-import matplotlib
 import time
 
-matplotlib.use("agg")
-import matplotlib.pyplot as plt
 import numpy as np
-from tqdm import trange
+import pandas as pd
+import sklearn
 import torch
 from scipy.stats import bernoulli
-import sklearn
+from tqdm import trange
 
-from ..utils.plot_functions import plot_rewards_scatter
-from ..utils.synthetic_imputations import synthetic_fill_variables
+from .synthetic_imputations import synthetic_fill_variables
 
 
 # This is on BO based next best action for eedi with heuristic dynamics
 def run_active_learning_strategy_eedi(
-    objective, model, data, mask, vamp_prior_data, max_steps, impute_config, objective_config,
+    objective,
+    model,
+    data,
+    mask,
+    vamp_prior_data,
+    max_steps,
+    impute_config,
+    objective_config,
 ):
 
     max_steps = objective_config["max_steps"]
@@ -57,9 +60,6 @@ def run_active_learning_strategy_eedi(
     all_imputed_values[:, 0, :] = imputed_no_observations
 
     # Create lists to store rewards in non myopic case
-    myopic_list = []
-    non_myopic_list = []
-    total_reward_list = []
     next_qs_lists = []
 
     # Mark all features as unobserved to begin with
@@ -105,19 +105,6 @@ def run_active_learning_strategy_eedi(
         if updated_X_imputed is not None:
             X_imputed = updated_X_imputed
 
-        # If I am doing a non myopic policy store the immediate and non myopic rewards
-        if objective.name() == "nm_ei":
-            if len(rewards) > 1:
-                myopic = np.mean(rewards[0], axis=0)
-                non_myopic = np.mean(rewards[1], axis=0)
-            else:
-                myopic = np.mean(rewards, axis=0)
-                non_myopic = np.zeros_like(myopic, dtype=bool)
-
-            myopic_list.append(myopic)
-            non_myopic_list.append(non_myopic)
-            total_reward_list.append(myopic + non_myopic)
-
         next_qs_lists.append(next_qs)
 
         # Update test mask and test data based on the heuristics
@@ -127,7 +114,7 @@ def run_active_learning_strategy_eedi(
         next_qs = [([-1] if len(x) == 0 else x) for x in next_qs]
         # If we are using a batch method we assign all questions observed in one go
         # otherwise we store the next question index
-        if objective.name() in ["b_ei", "k_ei"]:
+        if objective.name() == "b_ei":
             all_observations[:, :] = np.array(next_qs)
         else:
             all_observations[:, step_idx] = np.array(next_qs).reshape(-1)
@@ -159,7 +146,7 @@ def run_active_learning_strategy_eedi(
         # Store the imputed values
         all_imputed_values[:, step_idx + 1, :] = imputed
         # If a batch method is used, all imputed values are computed in one step thus we can break the loop after one step
-        if objective.name() in ["b_ei", "k_ei"]:
+        if objective.name() == "b_ei":
             all_imputed_values = all_imputed_values[:, :2, :]
             break
 
@@ -174,14 +161,6 @@ def run_active_learning_strategy_eedi(
     if len(all_reward_gains) == 0:
         all_reward_gains = None
 
-    # If a non myopic policy is used, we plot the evolutions of myopic and non myopic rewards for one user
-    if objective.name() == "nm_ei":
-        plot_rewards_scatter(
-            myopic_list, non_myopic_list, total_reward_list, max_steps, next_qs_lists, feature_count,
-        )
-        save_dir = os.path.join(model.save_dir, "active_learning/nm_ei")
-        save_path = os.path.join(save_dir, "{}.png".format("nm_rewards"))
-        plt.savefig(save_path, format="png", dpi=200, bbox_inches="tight")
     return all_imputed_values, all_observations, all_reward_gains
 
 
@@ -210,14 +189,14 @@ def expected_improvement(
         sample_count (int): Number of Monte Carlo samples of the latent space to use for the calculation.
         X_imputed (numpy array of shape (batch_size, feature_count)): Contains values of X that we predict to get when collecting a feature
                     and we want to consider when computing the expected rewards
-        data_mask (numpy array of shape (batch_size, feature_count)): Contains mask where 1 is observed in the 
+        data_mask (numpy array of shape (batch_size, feature_count)): Contains mask where 1 is observed in the
             underlying data, 0 is missing.
         as_array (bool): When True will return info_gain values as an np.ndarray. When False (default) will return info
             gain values as a List of Dictionaries.
-        greedy (bool): When true will use a greedy policy and compute the expected improvement as the predicted target 
+        greedy (bool): When true will use a greedy policy and compute the expected improvement as the predicted target
     Returns:
         rewards (List of Dictionaries): Length (batch_size) of dictionaries of the form {idx : expected_improvement} where
-            expected_improvement is np.nan if the variable is observed already (1 in obs_mask) or it is not observable (0 in data_mask)  
+            expected_improvement is np.nan if the variable is observed already (1 in obs_mask) or it is not observable (0 in data_mask)
             If as_array is True, rewards is an array of shape
             (batch_size, feature_count) instead.
     """
@@ -241,7 +220,7 @@ def expected_improvement(
 
     for idx, s in enumerate(combinations_list):
         # Compute data and mask one step ahead
-        if method in ["b_ei", "bin", "gls"]:
+        if method == "b_ei":
             # If we are using a batch method, the imputed values will be different depending on the batch
             data_osa, data_mask_osa = update_data_mask(s, data.copy(), data_mask, X_imputed[idx])
         else:
@@ -252,7 +231,7 @@ def expected_improvement(
             new_imputed = np.mean(model.impute(data_osa, data_mask_osa, impute_config), axis=1)
         else:
             # Get synthetic imputations
-            if method in ["b_ei", "bin", "gls"]:
+            if method == "b_ei":
                 new_imputed = synthetic_fill_variables(data, next_qs_lists, s, method=method)
             else:
                 # For each user we are evaluating the same feature so we pass the first element of set
@@ -262,7 +241,7 @@ def expected_improvement(
         rewards = new_imputed - old_imputed
         rewards[rewards < 0.0] = 0.0
         # Concatenate rewards
-        if method in ["b_ei", "bin", "gls"]:
+        if method == "b_ei":
             # If batch method, we concatenate the rewards of all batch
             if max_steps == feature_count:
                 # We only have one batch if feature_count equal the batch size
@@ -274,7 +253,7 @@ def expected_improvement(
 
     rewards_list_arr = np.transpose(np.vstack(rewards_list))
 
-    if method not in ["b_ei", "bin", "gls"]:
+    if method != "b_ei":
         # Set reward to nan if feature is already observed
         rewards_list_arr[obs_mask == 1.0] = np.nan
 
@@ -304,10 +283,10 @@ def get_similarity(similarity_metric, model, imputations, data_dir, p=2.0):
     Args:
         similarity_metric (str): Name of the chosen metric. Options are 'qe' (question embeddings), 'topics', 'sbert' and 'cosine' (cosine difference among imputations)
         model (Model): Trained `Model` class to use
-        imputations (numpy array of shape (batch_size, feature_count)): Imputed values for the features 
+        imputations (numpy array of shape (batch_size, feature_count)): Imputed values for the features
         data_dir (str): Directory to get precomputed metrics from.
         p (float): type of distance to use when similarity_metric is 'sbert'
-    
+
     Returns:
         distance (numpy array of shape (feature_count, feature_count)): matrix of distances among features
         threshold_value (float): threshold value to use to determine if features are similar or not
@@ -356,16 +335,16 @@ def question_similarity_imputation(
         user (int): Index of the user for which we want to modify the imputations
         test_mask (numpy array of shape (user_count, feature_count)): Mask indicating which entries in data are observed.
         test_data (numpy array of shape (user_count, feature_count)): Data to use for active learning.
-        imputations (numpy array of shape (batch_size, feature_count)): Imputed values for the features 
+        imputations (numpy array of shape (batch_size, feature_count)): Imputed values for the features
         distance (numpy array of shape (feature_count, feature_count)): matrix of distances among features
         threshold_value (float): threshold value to use to determine if features are similar or not
-        delta (float): percentage increase in the probability to answer a question correclty. This is used to modify the imputations. 
+        delta (float): percentage increase in the probability to answer a question correclty. This is used to modify the imputations.
         aggregate_values (bool): Whether to consider question constructs or not.
         data_dir (str): Directory to get precomputed metrics from.
         next_qs_lists (list of lists) : List of observed features for all users in test_data.
-    
+
     Returns:
-        imputations (numpy array of shape (batch_size, feature_count)): Modified imputed values for the features 
+        imputations (numpy array of shape (batch_size, feature_count)): Modified imputed values for the features
     """
 
     index_list = np.arange(test_data.shape[1])
@@ -413,17 +392,17 @@ def modify_batch_imputation(
         data_mask (numpy array of shape (user_count, feature_count)): Mask indicating which entries in data are observed.
         data (numpy array of shape (user_count, feature_count)): Data to use for active learning.
         next_qs_lists (list of lists) : List of observed features for all users in test_data.
-        previous_imputation (numpy array of shape (batch_size, feature_count)): Current imputed values for the features 
+        previous_imputation (numpy array of shape (batch_size, feature_count)): Current imputed values for the features
         combinations (list of list): List of sets of features for all users for which we want to compute the joint imputations.
         X_imputed (numpy array of shape (batch_size, feature_count)): X values when features are collected individually and are determined by the heuristic used.
         data_dir (str): Directory to get precomputed metrics from.
         imputation_method (str): heuristic to use for shifting the imputations
         similarity_metric (str): metric of similarity among features to be used when imputation_method is 'question_similarity'
         impute_config (dict): Impute config dictionary for the model.
-        delta (float): percentage increase in the probability to answer a question correclty. This is used to modify the imputations. 
+        delta (float): percentage increase in the probability to answer a question correclty. This is used to modify the imputations.
         aggregate_values (bool): Whether to consider question constructs or not.
 
-        
+
     Returns:
         modified_X_imputed (numpy array of shape (batch_size, feature_count)): Modified imputed values when sampling from the joint distribution of a set of features
     """
@@ -509,7 +488,8 @@ def get_imputations(
     if imputation_method == "unit":
         # We expect all answer to be correct and impute all of them to 1
         X_imputed = torch.as_tensor(
-            np.full((test_data.shape[0] * sample_count, test_data.shape[1]), fill_value=1.0), dtype=torch.float,
+            np.full((test_data.shape[0] * sample_count, test_data.shape[1]), fill_value=1.0),
+            dtype=torch.float,
         )
     else:
         if imputation_method == "increasing_probability":

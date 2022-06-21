@@ -1,6 +1,7 @@
+from typing import Optional, Tuple, Union
+
 import numpy as np
 from torchvision.datasets import CIFAR10
-from typing import Optional, Tuple, Union
 
 from ..datasets.dataset import Dataset
 from ..datasets.dataset_loader import DatasetLoader
