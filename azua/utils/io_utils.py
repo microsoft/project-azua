@@ -1,8 +1,8 @@
-from functools import partial
 import json
 import os
 import pickle
-from typing import Any, Callable, Dict, TextIO, TypeVar, Type
+from functools import partial
+from typing import Any, Callable, Dict, TextIO, Type, TypeVar
 
 T = TypeVar("T")
 
@@ -35,7 +35,7 @@ def read_json_as(path: str, t: Type[T]) -> T:
     Args:
         path (str): Path to json file
         t (type): Expected return type of python object.
-    """    
+    """
     data = read(path, ".json", json.load)
     assert isinstance(data, t)
     return data
@@ -86,7 +86,7 @@ def get_nth_parent_dir(path: str, n: int) -> str:
 
 def format_dict_for_console(d: dict) -> str:
     """
-    Format {'a': {'c': 2, 'b': 3}} as 
+    Format {'a': {'c': 2, 'b': 3}} as
         "a.b": 2
         "a.c": 3
 
@@ -117,15 +117,15 @@ def flatten_keys(d: Dict[str, Any], separator: str = ".") -> Dict[str, Any]:
 
 def unflatten_keys(d: Dict[str, Any], separator: str = ".") -> dict:
     """
-    Turn a flattened dict back into a nested dict. Inverse of flatten_keys, provided the input to flatten_keys 
+    Turn a flattened dict back into a nested dict. Inverse of flatten_keys, provided the input to flatten_keys
     does not have 'separator' in any of the keys.
-    
+
     Beware - modifies input dict in-place.
-    
+
     Example:
     unflatten_keys({'a.b': 3, 'a.c.f': 4})
     returns {'a': {'b': 3, 'c': {'f': 4}}}
-    
+
     Args:
         d (Dict[str, Any]): dictionary to unflatten
         separator (str, optional): Defaults to ".".

@@ -1,12 +1,12 @@
+from typing import Optional, Union
+
 import torch
-from torch_geometric.nn.conv import GATConv, MessagePassing
 import torch.nn as nn
-from torch.nn import Linear
 import torch.nn.functional as F
 from torch import Tensor
-
-from typing import Optional, Union
-from torch_geometric.typing import Adj, OptPairTensor, Size, OptTensor, SparseTensor
+from torch.nn import Linear
+from torch_geometric.nn.conv import GATConv, MessagePassing
+from torch_geometric.typing import Adj, OptPairTensor, OptTensor, Size, SparseTensor
 from torch_geometric.utils import softmax
 
 
@@ -46,7 +46,10 @@ class ConvModel(MessagePassing):
         self.normalize_embeddings = normalize_embeddings
 
     def forward(
-        self, x: torch.Tensor, edge_index: torch.Tensor, edge_attr: torch.Tensor,
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_attr: torch.Tensor,
     ):
         """
         Args
@@ -57,7 +60,12 @@ class ConvModel(MessagePassing):
         return self.propagate(edge_index, x=x, edge_attr=edge_attr)
 
     def message(
-        self, x_i: torch.Tensor, x_j: torch.Tensor, edge_attr: torch.Tensor, edge_index: torch.Tensor, size: int,
+        self,
+        x_i: torch.Tensor,
+        x_j: torch.Tensor,
+        edge_attr: torch.Tensor,
+        edge_index: torch.Tensor,
+        size: int,
     ):
         """
         Args

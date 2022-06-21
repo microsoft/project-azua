@@ -2,30 +2,26 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, Optional, List, Callable, Tuple, Union
 from time import gmtime, strftime
-
-from tqdm import trange, tqdm
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm, trange
 
-
-from ..models.model import Model
-from ..datasets.variables import Variables
 from ..datasets.dataset import Dataset
-from ..utils.torch_utils import get_torch_device, set_random_seeds
+from ..datasets.variables import Variables
+from ..models.model import Model
+from ..utils.data_transform import TransformableFirstTensorDataset, transform_from_configs
 from ..utils.io_utils import read_json_as, save_json, save_txt
-from ..utils.data_transform import transform_from_configs, TransformableFirstTensorDataset
-
+from ..utils.torch_utils import get_torch_device, set_random_seeds
 from .bnn import bayesianize_
-from .bnn.nn.nets import make_network
 from .bnn.nn.mixins.base import BayesianMixin
+from .bnn.nn.nets import make_network
 
 
 # TODO: inherit from TorchModel,so we can use code for basic operations (save/load/create)
@@ -116,7 +112,15 @@ class BNN(Model):
         reference_sd = torch.load(pretrained_path, map_location="cpu") if pretrained_path is not None else None
         if inference_config is not None:
             bayesianize_(net, reference_state_dict=reference_sd, **inference_config)
-        return cls(model_id, variables, save_dir, net, ensemble_size, device=torch_device, input_shape=input_shape,)
+        return cls(
+            model_id,
+            variables,
+            save_dir,
+            net,
+            ensemble_size,
+            device=torch_device,
+            input_shape=input_shape,
+        )
 
     @classmethod
     def load(cls, model_id: str, save_dir: str, device: Union[str, int]) -> BNN:
@@ -203,13 +207,15 @@ class BNN(Model):
         inputs, targets = self._split_inputs_and_targets_and_reshape(data, self.target_col)
         transform = transform_from_configs(transforms) if transforms is not None else None
         dataset = TransformableFirstTensorDataset(
-            torch.from_numpy(inputs).float(), torch.from_numpy(targets).long(), transform=transform,
+            torch.from_numpy(inputs).float(),
+            torch.from_numpy(targets).long(),
+            transform=transform,
         )
         dataloader = DataLoader(dataset, batch_size, shuffle=True, num_workers=num_workers)
         results_dict: Dict[str, List] = {metric: [] for metric in ["data_loss", "param_loss", "loss"]}
 
         kl_factor = 0.0 if ml_epochs > 0 or annealing_epochs > 0 else 1.0
-        annealing_rate = max_kl_factor * annealing_epochs ** -1 if annealing_epochs > 0 else 1.0
+        annealing_rate = max_kl_factor * annealing_epochs**-1 if annealing_epochs > 0 else 1.0
         for epoch in trange(epochs, desc="Epochs"):
             training_loss = 0.0
             n = 0

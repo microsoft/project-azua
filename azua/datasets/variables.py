@@ -5,7 +5,7 @@ import logging
 import warnings
 from collections import defaultdict
 from distutils.util import strtobool
-from typing import Any, DefaultDict, Dict, Tuple, cast, Iterator, List, Optional, overload, Union
+from typing import Any, DefaultDict, Dict, Iterator, List, Optional, Tuple, Union, cast, overload
 
 import numpy as np
 import torch
@@ -109,25 +109,21 @@ class Variables:
         # Set of all query group names, maintaining order in which they are first encountered when iterating through
         # the variables list. This is the simplest way to do this since dictionaries are guaranteed to be
         # insertion-ordered since Python 3.7
-        self.query_group_names = list(dict.fromkeys([var.group_name for var in self._variables]))
+        self.group_names = list(dict.fromkeys([var.group_name for var in self._variables]))
 
         # List containing indices for each query group, where the query group names are assumed to be in the same order
-        # as self.query_group_names
-        self.query_group_idxs = [
+        # as self.group_names
+        self.group_idxs = [
             [idx for idx, var in enumerate(self._variables) if var.group_name == group_name]
-            for group_name in self.query_group_names
+            for group_name in self.group_names
         ]
 
-        # Remove groups containing no queriable variables from self.query_group_names and self.query_group_idxs, as
+        # Remove groups containing no queriable variables from self.group_names and self.group_idxs, as
         # we can guarantee that we will never query these groups.
-        is_group_queriable = [any([self._variables[idx].query for idx in idxs]) for idxs in self.query_group_idxs]
+        is_group_queriable = [any([self._variables[idx].query for idx in idxs]) for idxs in self.group_idxs]
 
-        self.query_group_names = [
-            name for group_idx, name in enumerate(self.query_group_names) if is_group_queriable[group_idx]
-        ]
-        self.query_group_idxs = [
-            idxs for group_idx, idxs in enumerate(self.query_group_idxs) if is_group_queriable[group_idx]
-        ]
+        self.group_names = [name for group_idx, name in enumerate(self.group_names) if is_group_queriable[group_idx]]
+        self.group_idxs = [idxs for group_idx, idxs in enumerate(self.group_idxs) if is_group_queriable[group_idx]]
 
         # Save the list of observed column ids
         default_used_cols = list(range(len(self._variables) + len(auxiliary_variables)))  # All columns observed
@@ -358,7 +354,7 @@ class Variables:
         Args:
             data: NumPy array containing data
             mask: NumPy array containing 1 for observed data values, 0 for unobserved data values.
-            variables_dict: Dictionary containing metadata for each variable (column) in the input data. Missing variables, 
+            variables_dict: Dictionary containing metadata for each variable (column) in the input data. Missing variables,
                 or missing fields for a particular variable, will attempt to be inferred from the input data.
             infer_aux_variables: infer auxiliary variables for GINA or not.
         Returns:
@@ -447,10 +443,10 @@ class Variables:
 
     @property
     def non_text_idxs(self) -> List[bool]:
-        """ Helper method. Returns list of booleans, where an element 
-            at index i indicates whether a variable at index i is non-text or not
-            e.g. For Variables object of [..."continous"..., ..."text"..., "continuous"],
-            the result would be [True, False, True]
+        """Helper method. Returns list of booleans, where an element
+        at index i indicates whether a variable at index i is non-text or not
+        e.g. For Variables object of [..."continous"..., ..."text"..., "continuous"],
+        the result would be [True, False, True]
         """
         unproc_cols_by_type = self.unprocessed_cols_by_type
         if "text" not in unproc_cols_by_type:
@@ -486,11 +482,11 @@ class Variables:
         return sum([len(idxs) for idxs in self.processed_non_aux_cols])
 
     @property
-    def num_query_groups(self) -> int:
+    def num_groups(self) -> int:
         """
         Return the number of unique query groups in the variables object.
         """
-        return len(self.query_group_names)
+        return len(self.group_names)
 
     @property
     def group_mask(self) -> np.ndarray:
@@ -498,8 +494,8 @@ class Variables:
         Return a mask of shape (num_groups, num_processed_cols) indicating which column
         corresponds to which group.
         """
-        mask = np.zeros((self.num_query_groups, self.num_processed_cols), dtype=np.bool_)
-        for group_idx, group in enumerate(self.query_group_idxs):
+        mask = np.zeros((self.num_groups, self.num_processed_cols), dtype=bool)
+        for group_idx, group in enumerate(self.group_idxs):
             for var in group:
                 for proc_col in self.processed_cols[var]:
                     mask[group_idx, proc_col] = 1
@@ -516,9 +512,9 @@ class Variables:
     def processed_cols_by_type(self) -> Dict[str, List[List[int]]]:
         """
         Return a dictionary mapping each type of data (e.g. continuous, binary, ...) to a list of lists, where each
-        sublist represents indices in the processed (i.e. one-hot) data associated with each variable of that type. 
-        
-        E.g. for a two categorical variables each taking 3 values, followed by a binary variable, return 
+        sublist represents indices in the processed (i.e. one-hot) data associated with each variable of that type.
+
+        E.g. for a two categorical variables each taking 3 values, followed by a binary variable, return
         {'categorical': [[0,1,2], [3,4,5]], 'binary': [[6]]}.
         """
         grouped_vars: DefaultDict[str, List[List[int]]] = defaultdict(list)
@@ -546,7 +542,7 @@ class Variables:
         Return a dictionary mapping each type of data (e.g. continuous, binary, ...) to a list containing the column
         indices in the unprocessed data for all variables of that type.
 
-        E.g. for a two categorical variables each taking 3 values, followed by a binary variable, return 
+        E.g. for a two categorical variables each taking 3 values, followed by a binary variable, return
         {'categorical': [0, 1], 'binary': [2]}.
         """
         grouped_vars: DefaultDict[str, List[int]] = defaultdict(list)
@@ -604,8 +600,8 @@ class Variables:
 
     def get_idxs_from_name_list(self, variable_names: List[Union[str, int]]) -> np.ndarray:
         """
-        Get a binary array of shape (variable_count,), where for each index the array value is 1 if the corresponding 
-        variable is named in `variable_names`, and 0 otherwise. 
+        Get a binary array of shape (variable_count,), where for each index the array value is 1 if the corresponding
+        variable is named in `variable_names`, and 0 otherwise.
         """
         variables_to_query = np.zeros((len(self._variables),))
         # Look up indices of specified variables and mark as queriable.
@@ -625,12 +621,12 @@ class Variables:
             obs_mask_row: 1D numpy array containing 1 for variables observed during active learning and 0 for ones unobserved
 
         Returns:
-            list of indices of groups that can be observed, where the indices correspond to the corresponding group 
-            names in `self.query_group_names`.
+            list of indices of groups that can be observed, where the indices correspond to the corresponding group
+            names in `self.group_names`.
         """
         observable_variables_idxs = self.get_observable_variable_idxs(data_mask_row, obs_mask_row)
         observable_groups_idxs: List[int] = []
-        for group_idx, idxs in enumerate(self.query_group_idxs):
+        for group_idx, idxs in enumerate(self.group_idxs):
             if any([i in observable_variables_idxs for i in idxs]):
                 observable_groups_idxs.append(group_idx)
         return observable_groups_idxs
@@ -693,13 +689,13 @@ class Variables:
     def get_variables_to_observe(self, data_mask: torch.Tensor) -> torch.Tensor:
         """
         Return a boolean tensor of length num_variables, where each element indicates whether the corresponding variable
-        can be queried during active learning (i.e. the variable is queriable and has at least one observed value in 
+        can be queried during active learning (i.e. the variable is queriable and has at least one observed value in
         the data).
         Args:
             data_mask (shape (batch_size, num_processed_cols)): Processed mask
 
         Returns:
-            torch.Tensor (shape (variable_count,)): True where it's a query-able variable and we have at least one 
+            torch.Tensor (shape (variable_count,)): True where it's a query-able variable and we have at least one
             observed value
         """
         cols_with_data = data_mask.sum(dim=0).to(torch.bool)
@@ -708,7 +704,9 @@ class Variables:
         ii = torch.tensor([cols[0] for cols in self.processed_cols], dtype=torch.long, device=cols_with_data.device)
         cols_with_data = torch.index_select(cols_with_data, 0, ii)
         is_query_id = torch.zeros(len(self), dtype=torch.bool, device=cols_with_data.device)
-        is_query_id[tuple(self.query_var_idxs),] = True
+        is_query_id[
+            tuple(self.query_var_idxs),
+        ] = True
         return is_query_id * cols_with_data
 
     def _deduplicate_names(self):
@@ -725,7 +723,8 @@ class Variables:
                 # Do the warning in a separate block to the while loop so that we only raise one warning if we have to
                 # try appending several different integers to the name.
                 warnings.warn(
-                    f"Name {original_name} has already been used, renaming to {var.name}", UserWarning,
+                    f"Name {original_name} has already been used, renaming to {var.name}",
+                    UserWarning,
                 )
             var_names.add(var.name)
 

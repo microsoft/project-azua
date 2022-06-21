@@ -1,11 +1,11 @@
-from typing import Any, Dict, Optional, Callable, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import numpy as np
 from sklearn.impute import SimpleImputer
 
-from ..baselines.sk_learn_imputer import SKLearnImputer
 from ..datasets.dataset import Dataset
 from ..datasets.variables import Variables
+from .sk_learn_imputer import SKLearnImputer
 
 
 class MeanImputing(SKLearnImputer):

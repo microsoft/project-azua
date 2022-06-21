@@ -4,9 +4,9 @@ from typing import Optional
 import torch
 from torch.nn import Linear, ReLU, Sequential
 
-from ..models.set_encoder_base_model import SetEncoderBaseModel
-from ..models.feature_embedder import FeatureEmbedder, SparseFeatureEmbedder
-from ..utils.exceptions import ONNXNotImplemented
+from .torch_model import ONNXNotImplemented
+from .feature_embedder import FeatureEmbedder, SparseFeatureEmbedder
+from .set_encoder_base_model import SetEncoderBaseModel
 
 
 class PointNet(SetEncoderBaseModel):
@@ -35,7 +35,7 @@ class PointNet(SetEncoderBaseModel):
             metadata: Optional torch tensor. Each row represents a feature and each column is a metadata dimension for the feature.
                 Shape (input_dim, metadata_dim).
             device: torch device to use.
-            multiply_weights: Boolean. Whether or not to take the product of x with embedding weights when feeding 
+            multiply_weights: Boolean. Whether or not to take the product of x with embedding weights when feeding
                  through. Defaults to True.
             encoding_function: Function to use to summarise set input. Defaults to "sum".
         """
@@ -47,7 +47,8 @@ class PointNet(SetEncoderBaseModel):
         self._set_encoding_func = self._get_function_from_function_name(encoding_function)
 
         self._forward_sequence = Sequential(
-            Linear(self._feature_embedder.output_dim, set_embedding_dim).to(device), ReLU(),
+            Linear(self._feature_embedder.output_dim, set_embedding_dim).to(device),
+            ReLU(),
         )
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
@@ -102,8 +103,8 @@ class PointNet(SetEncoderBaseModel):
 class SparsePointNet(PointNet):
     """
     Behaves identically to PointNet, but the forward pass filters on observed values in each
-    data point before concatenating feature embeddings. This requires a small overhead in order to locate the unmasked 
-    elements in each datapoint on each forward pass, but can substantially reduce the memory usage when the data is 
+    data point before concatenating feature embeddings. This requires a small overhead in order to locate the unmasked
+    elements in each datapoint on each forward pass, but can substantially reduce the memory usage when the data is
     large and sparsely-observed.
 
     This encoder cannot currently be serialised into ONNX format, hopefully this will be updated in future.

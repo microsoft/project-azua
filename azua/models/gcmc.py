@@ -1,16 +1,16 @@
-from ..models.graph_neural_network import GraphNeuralNetwork
+from .graph_neural_network import GraphNeuralNetwork
 
 
 class GCMC(GraphNeuralNetwork):
     """
     Graph Convolutional Matrix Completion (GC-MC)
 
-    Graph convolutional matrix completion. 
+    Graph convolutional matrix completion.
     https://arxiv.org/abs/1706.02263
     R. v. d. Berg, T. Kipf, and M. Welling
     In KDD Deep Learning Day Workshop, 2017.
 
-    Compared to GCN, this model has a single message-passing layer. 
+    Compared to GCN, this model has a single message-passing layer.
     Also, For classification, each label is endowed with a separate message passing channel.
     Here, we do not implement the weight sharing.
     """

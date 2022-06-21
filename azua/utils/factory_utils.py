@@ -3,14 +3,17 @@ import os
 from importlib import import_module
 from typing import Any, List, Type, Union
 
-from ..utils.exceptions import ModelClassNotFound
 
 logger = logging.getLogger(__name__)
 
 
-def get_subclasses(directory: str, parent_class: Type[Any]):
+class ModelClassNotFound(NotImplementedError):
+    pass
+
+
+def get_subclasses(directory_path: str, parent_class: Type[Any]):
     subclass_dir = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.realpath(__file__))), directory,  # Root of the repository
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))), directory_path
     )
 
     for root, dirs, files in os.walk(subclass_dir):
@@ -20,7 +23,12 @@ def get_subclasses(directory: str, parent_class: Type[Any]):
             subclass_path = os.path.relpath(os.path.join(root, subclass_file), subclass_dir)
             subclass_file_name, ext = os.path.splitext(subclass_path)
             if ext == ".py" and not subclass_file.endswith("__init__"):
-                subclass_import_path = "azua.%s.%s" % (directory, subclass_file_name.replace("/", "."))
+                # TODO: change it to the relative import. This way,
+                # when we opensource the code, we shouldn't need to
+                # change this line
+                package = directory_path.strip("/").replace("/", ".")
+                module = subclass_file_name.replace("/", ".")
+                subclass_import_path = f"{package}.{module}"
                 import_module(subclass_import_path)
     subclass_list = parent_class.__subclasses__()
     return subclass_list

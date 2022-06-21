@@ -1,23 +1,22 @@
 import csv
 import logging
 import os
-from typing import Dict, Any, List, Tuple, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
+import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sn
-import matplotlib.pyplot as plt
+import torch
 from scipy.sparse import csr_matrix, issparse, spmatrix
+from sklearn import metrics as sk_metrics
 from sklearn.manifold import TSNE
 from torch.utils.data import DataLoader
-import torch
 
-from ..models.imodel import IModelForObjective
-from ..datasets.variables import Variables
 from ..objectives.eddi import EDDIObjective
-from ..utils.io_utils import save_json, format_dict_for_console
+from ..datasets.variables import Variables
+from ..models.imodel import IModelForObjective
 from ..utils.helper_functions import maintain_random_state
-
-from sklearn import metrics as sk_metrics
+from ..utils.io_utils import format_dict_for_console, save_json
 
 logger = logging.getLogger(__name__)
 
@@ -59,21 +58,18 @@ def save_train_val_test_metrics(
     val_metrics: Dict[str, Dict[str, Any]],
     test_metrics: Dict[str, Dict[str, Any]],
     save_file: str,
-    save_confusion: bool,
 ):
     """
     Save the metrics dictionaries corresponding to train/val/test data in one file.
     """
     metrics = {"train_data": train_metrics, "val_data": val_metrics, "test_data": test_metrics}
     save_json(metrics, save_file)
-    if save_confusion:
-        save_confusion_plot(test_metrics, os.path.dirname(save_file))
 
 
 def compute_metrics(imputed_values, ground_truth, target_mask, variables: Variables) -> Dict[str, Any]:
     """
     Compute imputation metrics.
-    
+
     Args:
         imputed_values: Imputation values with shape (user_count, feature_count).
         ground_truth: Ground truth values with shape (user_count, feature_count).
@@ -82,7 +78,7 @@ def compute_metrics(imputed_values, ground_truth, target_mask, variables: Variab
 
     Returns:
         Dictionary of metric results {var: {metric: value}}
-               
+
     """
     assert target_mask.dtype == bool  # Ensure mask is bool so that using ~mask in other functions behaves as expected.
 
@@ -174,7 +170,7 @@ def compute_target_metrics(imputed_values, ground_truth, variables) -> Dict[str,
         imputed_values: Imputation values with shape (user_count, feature_count).
         ground_truth: Ground truth values with shape (user_count, feature_count).
         variables: List of variables.
-        
+
     Returns:
         Dict of metrics {var: {metric: value}}
     """
@@ -207,7 +203,11 @@ def compute_target_metrics(imputed_values, ground_truth, variables) -> Dict[str,
 
 
 def get_metric(
-    variables: Variables, imputed_values: np.ndarray, ground_truth: np.ndarray, target_mask: Union[np.ndarray, csr_matrix] , idxs: List[int]
+    variables: Variables,
+    imputed_values: np.ndarray,
+    ground_truth: np.ndarray,
+    target_mask: Union[np.ndarray, csr_matrix],
+    idxs: List[int],
 ) -> Dict[str, float]:
     """
     Get the value of a comparative metric for the given variables.
@@ -220,7 +220,7 @@ def get_metric(
         idxs: Indices of variables to get the metric for.
 
     Return:
-        Dict of {metric name: value} 
+        Dict of {metric name: value}
     """
     assert imputed_values.ndim == 2
     assert target_mask.ndim == 2
@@ -364,11 +364,15 @@ def get_rmse(imputed_values, ground_truth, target_mask, variables: Variables, no
 
 
 def compute_save_additional_metrics(
-    imputations: np.ndarray, data: np.ndarray, model: IModelForObjective, path: str, objective_config: dict,
+    imputations: np.ndarray,
+    data: np.ndarray,
+    model: IModelForObjective,
+    path: str,
+    objective_config: dict,
 ):
-    """    
-    Get question quality and difficulty and save them 
-    
+    """
+    Get question quality and difficulty and save them
+
     Args:
         imputations: Imputation values with shape (user_count, feature_count)
         data: Imputation values with shape (user_count, feature_count)
@@ -378,7 +382,7 @@ def compute_save_additional_metrics(
 
     Returns:
         List of question quality of lenght feature_count
-        
+
     """
     # Get question quality for each question based on the KL divergence between p(z|x) and p(z)
     objective = EDDIObjective(model, **objective_config)
@@ -403,7 +407,10 @@ def compute_save_additional_metrics(
 
 
 def get_aggregated_accuracy(
-    imputed_values: np.ndarray, ground_truth: np.ndarray, target_mask: np.ndarray, variables: Variables,
+    imputed_values: np.ndarray,
+    ground_truth: np.ndarray,
+    target_mask: np.ndarray,
+    variables: Variables,
 ) -> float:
     """
     Get accuracy calculated across all discrete variables in the dataset.
@@ -521,8 +528,8 @@ def create_latent_distribution_plots(
 ) -> None:
     """
     Create latent distribution plots using samples from given data and mask.
-    
-    Three plots are created: 
+
+    Three plots are created:
        - SNR histogram of latent |mean|/std in dB.
        - tSNE plot of latent mean and log-variance, with points coloured by target value,
          or just the first variable if there is no target variable.
@@ -534,7 +541,7 @@ def create_latent_distribution_plots(
         model (IModelForObjective): Any model which implements 'encode'.
         dataloader: DataLoader instance supplying data and mask inputs.
         output_dir: Training output dir. Plots will be saved at e.g.
-           {output_dir}/latent_distribution_plots/SNR_histogram{epoch}.png 
+           {output_dir}/latent_distribution_plots/SNR_histogram{epoch}.png
         epoch (int): Number of epochs of training that have happened.
         num_points_plot: Number of points to plot. Will be rounded up to a whole number of batches from the dataloader.
     """

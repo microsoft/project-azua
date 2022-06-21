@@ -1,19 +1,17 @@
 from abc import abstractmethod
-from ..models.imodel import IModelWithReconstruction
-from ..models.torch_training_types import LossConfig, VAELossResults
-from ..datasets.dataset import Dataset, SparseDataset
-from ..models.torch_training import train_model
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import torch
-
 import torch.distributions as tdist
 
+from ..datasets.dataset import Dataset, SparseDataset
 from ..datasets.variables import Variables
+from ..models.imodel import IModelWithReconstruction
 from ..models.torch_model import TorchModel
+from ..models.torch_training import train_model
+from ..models.torch_training_types import LossConfig, VAELossResults
 from ..utils.training_objectives import kl_divergence, negative_log_likelihood
-
-from ..models.models_utils import assert_elements_have_equal_first_dimension, assert_elements_have_equal_shape
+from .models_utils import assert_elements_have_equal_first_dimension, assert_elements_have_equal_shape
 
 
 class TorchVAE(TorchModel, IModelWithReconstruction):
@@ -40,7 +38,7 @@ class TorchVAE(TorchModel, IModelWithReconstruction):
             decoder (`torch.nn.Module`): torch decoder to be used in decode()
             categorical_likelihood_coefficient (float): coefficient for balancing likelihoods
             kl_coefficient (float): coefficient for KL terms
-            
+
         """
 
         super().__init__(model_id, variables, save_dir, device)
@@ -158,9 +156,7 @@ class TorchVAE(TorchModel, IModelWithReconstruction):
     # TODO: Fix IModelForReconstruction to use *input_tensors, and remove below type_ignore
     def reconstruct(  # type: ignore
         self, *input_tensors: torch.Tensor, sample: bool = True, count: int = 1
-    ) -> Tuple[
-        Tuple[torch.Tensor, torch.Tensor], torch.Tensor, Tuple[torch.Tensor, torch.Tensor],
-    ]:
+    ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor, Tuple[torch.Tensor, torch.Tensor],]:
         """
         Reconstruct a fully observed version of x by passing through the VAE.
 

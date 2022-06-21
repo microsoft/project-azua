@@ -1,13 +1,14 @@
+from typing import List
+
 import numpy as np
 
 from ..datasets.variables import Variables
 from ..models.imodel import IModelForObjective
-from ..objectives.eddi_base import EDDIBaseObjective
-from typing import List
+from .eddi_base import EDDIBaseObjective
 
 
 class SINGObjective(EDDIBaseObjective):
-    """"
+    """ "
     SING objective.
     """
 

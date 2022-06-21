@@ -1,9 +1,12 @@
 import itertools
 import os
+from typing import Any, Dict, Optional, Tuple
 
 from ..utils.io_utils import read_json_as, recursive_update
-from ..utils.exceptions import ModelConfigNotFound
-from typing import Any, Dict, Optional, Tuple
+
+
+class ModelConfigNotFound(Exception):
+    pass
 
 
 def get_configs(
@@ -16,9 +19,9 @@ def get_configs(
     default_configs_dir: str = "configs",
 ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
     """
-    Load config files. For a given model, a set of 'global' default configs will first be loaded from 
+    Load config files. For a given model, a set of 'global' default configs will first be loaded from
     [default_configs_dir]/defaults, and will then be updated with any values specified in dataset-specific config files
-    found in [default_configs_dir]/dataset_name, if they exist. Finally, these configs will be updated with any values 
+    found in [default_configs_dir]/dataset_name, if they exist. Finally, these configs will be updated with any values
     found in the user-specified configs loaded from the override_x_path arguments, if they are provided.
 
     Args:
@@ -98,7 +101,7 @@ def update_dict_from_path(old_dict, new_path):
 def split_config(config, diagonal=False):
     """
     Splits a dictionary into a list of dictionaries. For each key that wants to be split
-    the values should be provided in the form 
+    the values should be provided in the form
                 key : {"__split__" : True, values : list_of_values}
     and the returned list of dictionaries each contain key : val for each val in list_of_values.
     If multiple keys are to be split on, the returned list will produce an exhaustive
@@ -109,7 +112,7 @@ def split_config(config, diagonal=False):
     list_of_values.
 
     This method will split along keys within nested dictionaries too.
-    
+
     e.g. (non-diagonal)
             {key_1 : {"__split__" : True, "values" : [val_1, val_2]},
              key_2 : [val_3, val_4],

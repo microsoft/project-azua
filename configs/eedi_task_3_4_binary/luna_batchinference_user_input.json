@@ -1,5 +1,5 @@
 {
-    "data_source": "data/eedi_task_3_4_binary/all.csv",
+    "data_source": "data/eedi_task_3_4_binary/test.csv",
     "output": "data/eedi_task_3_4_binary/test_imputed.csv",
     "dataset_type": "sparse",
     "hyperparameters":

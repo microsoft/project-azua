@@ -4,21 +4,19 @@ Aggregate results from multiple models.
 See parallel_random_seeds_and_aggregate.py for example usage with AzureML.
 """
 
+import copy
+import glob
 import logging
 import os
-from typing import List, Dict, Any
-import glob
-import copy
+from typing import Any, Dict, List
 
 import pandas as pd
 
 from ...utils.active_learning import plot_and_save_rmse_curves
-from ...utils.io_utils import flatten_keys, read_json_as, unflatten_keys, save_json
-from ...utils.io_utils import read_txt
-from ...utils.run_utils import find_all_model_dirs
 from ...datasets.variables import Variables
+from ...utils.io_utils import flatten_keys, read_json_as, read_txt, save_json, unflatten_keys
+from ...utils.run_utils import find_all_model_dirs
 from ..imetrics_logger import IMetricsLogger
-
 
 logger = logging.getLogger()
 
@@ -35,9 +33,9 @@ def run_aggregation_main(
         output_dir_dir (str): directory where the summary results should be saved.
         experiment_name (str): identifier for the current experiment
         summarise: Flag indicating whether you want to create summary files with mean and standard deviation of each metric.
-          If False, this function just creates a file all_results_and_configs.csv which has a column for each metric and 
-          config entry, and a row for each of the models. 
-          If True, you will also get summary JSON files and plots with mean and standard deviation of some metrics. Metrics 
+          If False, this function just creates a file all_results_and_configs.csv which has a column for each metric and
+          config entry, and a row for each of the models.
+          If True, you will also get summary JSON files and plots with mean and standard deviation of some metrics. Metrics
           are summarised in two ways: 1) over all runs, and 2) separately for each data split,
           in case you have run with multiple different random data splits.
 
@@ -66,7 +64,11 @@ def run_aggregation_main(
 
 
 def create_summary(
-    df: pd.DataFrame, output_dir: str, variables: Variables, num_samples: int, metrics_logger: IMetricsLogger,
+    df: pd.DataFrame,
+    output_dir: str,
+    variables: Variables,
+    num_samples: int,
+    metrics_logger: IMetricsLogger,
 ):
 
     # Summary over all seeds
@@ -173,9 +175,9 @@ def save_results(data: dict, save_dir: str, result_fields: List[str], variables:
 
 def get_configs_and_results(model_dir: str) -> dict:
     """
-    Load configs and results from JSON files into a dict with keys 'model_config', 'train_config', 
+    Load configs and results from JSON files into a dict with keys 'model_config', 'train_config',
     'results', 'target_results' etc.
-    
+
     """
     variables = Variables.create_from_json(os.path.join(model_dir, "variables.json"))
     configs_and_results: Dict[str, Any] = {}

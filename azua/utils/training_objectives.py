@@ -1,15 +1,50 @@
-from ..datasets.data_processor import DataProcessor
 from typing import Optional, Tuple
 
 import torch
 import torch.distributions as tdist
 from torch.distributions.distribution import Distribution
 
+from ..preprocessing.data_processor import DataProcessor
 from ..datasets.variables import Variables
 
 
+def get_input_and_scoring_masks(
+    mask: torch.Tensor, *, max_p_train_dropout: float, score_imputation: bool, score_reconstruction: bool
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Apply random dropout to an unprocessed mask, and calculate which output positions should be included in loss calculation for training.
+
+    Args:
+        mask (torch.Tensor): unprocessed mask indicating which variables are available for training. 1 indicates observed, 0 indicates unobserved.
+        max_p_train_dropout (float): max proportion of columns to mask in each row.
+        score_imputation (bool): if true, the scoring mask has 1.0 for entries that are present in the data but masked in the input to the model.
+        score_reconstruction (bool): if true, the scoring mask has 1.0 for entries that are unmasked in the model input.
+
+    Returns:
+        (input_mask, scoring_mask): input_mask is is the unprocessed mask to be applied before passing data to the model for reconstruction/imputation.
+             scoring_mask (also, unprocessed mask) indicates which entries in the output should be included when calculating negative log-likelihood loss.
+    """
+
+    p_missing = torch.rand(mask.shape[0], 1) * max_p_train_dropout
+    input_mask = mask * torch.bernoulli(1.0 - p_missing.expand_as(mask)).to(mask.dtype).to(mask.device)
+    if score_reconstruction:
+        if score_imputation:
+            # Score both reconstruction and imputation
+            scoring_mask = mask
+        else:
+            # Only score reconstruction
+            scoring_mask = input_mask
+    else:
+        # Only score imputation
+        scoring_mask = mask - input_mask
+    return input_mask, scoring_mask
+
+
 def bernoulli_negative_log_likelihood(
-    targets: torch.Tensor, mean: torch.Tensor, mask: Optional[torch.Tensor] = None, sum_type: Optional[str] = "all",
+    targets: torch.Tensor,
+    mean: torch.Tensor,
+    mask: Optional[torch.Tensor] = None,
+    sum_type: Optional[str] = "all",
 ):
     """
     This function comptutes negative log likelihood for a Bernoulli distribution given some data.
@@ -18,7 +53,7 @@ def bernoulli_negative_log_likelihood(
         targets: Ground truth values.
         mean: Predicted mean values, output from decoder.
         mask: Missingness mask. 1 is observed, 0 is missing. Defaults to None, in which cases assumed all observed.
-        sum_type: How to sum result. None will return the entire array, 'cols' will sum per variable,'all' will sum all 
+        sum_type: How to sum result. None will return the entire array, 'cols' will sum per variable,'all' will sum all
             elements.
 
     Returns:
@@ -46,7 +81,7 @@ def gaussian_negative_log_likelihood(
         mean: Predicted mean values, output from decoder.
         logvar: Predicted logvar values, output from decoder.
         mask: Missingness mask. 1 is observed, 0 is missing. Defaults to None, in which cases assumed all observed.
-        sum_type: How to sum result. None will return the entire array, 'cols' will sum per variable,'all' will sum all 
+        sum_type: How to sum result. None will return the entire array, 'cols' will sum per variable,'all' will sum all
             elements.
 
     Returns:
@@ -60,7 +95,10 @@ def gaussian_negative_log_likelihood(
 
 
 def categorical_negative_log_likelihood(
-    targets: torch.Tensor, mean: torch.Tensor, mask: Optional[torch.Tensor] = None, sum_type: Optional[str] = "all",
+    targets: torch.Tensor,
+    mean: torch.Tensor,
+    mask: Optional[torch.Tensor] = None,
+    sum_type: Optional[str] = "all",
 ):
     """
     This function comptutes negative log likelihood for a categorical distribution given some data.
@@ -69,7 +107,7 @@ def categorical_negative_log_likelihood(
         targets: Ground truth values.
         mean: Predicted mean values, output from decoder.
         mask: Missingness mask. 1 is observed, 0 is missing. Defaults to None, in which cases assumed all observed.
-        sum_type: How to sum result. None will return the entire array, 'cols' will sum per variable,'all' will sum all 
+        sum_type: How to sum result. None will return the entire array, 'cols' will sum per variable,'all' will sum all
             elements.
 
     Returns:
@@ -85,7 +123,10 @@ def categorical_negative_log_likelihood(
 
 
 def get_nll_from_dist(
-    dist: Distribution, targets: torch.Tensor, mask: Optional[torch.Tensor] = None, sum_type: Optional[str] = "all",
+    dist: Distribution,
+    targets: torch.Tensor,
+    mask: Optional[torch.Tensor] = None,
+    sum_type: Optional[str] = "all",
 ):
     assert sum_type in [None, "cols", "all"]
     log_prob = dist.log_prob(targets)
@@ -101,7 +142,8 @@ def get_nll_from_dist(
 
 
 def kl_divergence(
-    z1: Tuple[torch.Tensor, torch.Tensor], z2: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+    z1: Tuple[torch.Tensor, torch.Tensor],
+    z2: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
 ):
     mean1, logvar1 = z1
 
@@ -141,12 +183,12 @@ def negative_log_likelihood(
         variables: List of all variables
         alpha: Categorical likelihood coefficient in NLL calculation.
         mask: Mask for input data, shape (batch_size, input_count). 1 is present, 0 is missing. Set to all 1's if None.
-        sum_type: How to sum result. None will return the entire array, 'cols' will sum per variable,'all' will sum all 
+        sum_type: How to sum result. None will return the entire array, 'cols' will sum per variable,'all' will sum all
             elements.
     Returns:
         nll: Negative log likelihood summed as per `sum_type`. torch.Tensor of shape (batch_size, num_vars)
         if `sum_type=='all'`, shape (1, num_vars) if `sum_type=='cols'` or a scalar if `sum_type is None`. Note that if
-        the data contains categorical variables, then num_vars <= num_features, where num_features is the number of 
+        the data contains categorical variables, then num_vars <= num_features, where num_features is the number of
         features in the input data, since these are encoded using a one-hot encoding which spans multiple columns.
     """
     variables = variables.subset(list(range(0, variables.num_unprocessed_non_aux_cols)))
@@ -213,7 +255,10 @@ def negative_log_likelihood(
             flatten(idxs_by_type["binary"]),
         )
         nlls[:, binary_vars] = bernoulli_negative_log_likelihood(
-            data[:, binary_idxs], decoder_mean[:, binary_idxs], mask[:, binary_idxs], sum_type=feature_sum_type,
+            data[:, binary_idxs],
+            decoder_mean[:, binary_idxs],
+            mask[:, binary_idxs],
+            sum_type=feature_sum_type,
         )
     if "categorical" in vars_by_type:
         categorical_vars, categorical_idxs = (
@@ -223,7 +268,10 @@ def negative_log_likelihood(
         for var, idxs in zip(categorical_vars, categorical_idxs):
             # Have to compute NLL for each categorical variable separately due to different numbers of categories
             nlls[:, var] = alpha * categorical_negative_log_likelihood(
-                data[:, idxs], decoder_mean[:, idxs], mask[:, idxs], sum_type=feature_sum_type,
+                data[:, idxs],
+                decoder_mean[:, idxs],
+                mask[:, idxs],
+                sum_type=feature_sum_type,
             )
     # Now sum everything if returning total sum.
     if sum_type == "all":
@@ -255,36 +303,4 @@ def get_input_and_scoring_processed_masks(
     input_mask = data_processor.process_mask(unprocessed_input_mask)
     scoring_mask = data_processor.process_mask(unprocessed_scoring_mask)
 
-    return input_mask, scoring_mask
-
-
-def get_input_and_scoring_masks(
-    mask: torch.Tensor, *, max_p_train_dropout: float, score_imputation: bool, score_reconstruction: bool
-) -> Tuple[torch.Tensor, torch.Tensor]:
-    """
-    Apply random dropout to an unprocessed mask, and calculate which output positions should be included in loss calculation for training.
-
-    Args:
-        mask (torch.Tensor): unprocessed mask indicating which variables are available for training. 1 indicates observed, 0 indicates unobserved.
-        max_p_train_dropout (float): max proportion of columns to mask in each row.
-        score_imputation (bool): if true, the scoring mask has 1.0 for entries that are present in the data but masked in the input to the model.
-        score_reconstruction (bool): if true, the scoring mask has 1.0 for entries that are unmasked in the model input.
-
-    Returns:
-        (input_mask, scoring_mask): input_mask is is the unprocessed mask to be applied before passing data to the model for reconstruction/imputation.
-             scoring_mask (also, unprocessed mask) indicates which entries in the output should be included when calculating negative log-likelihood loss.
-    """
-
-    p_missing = torch.rand(mask.shape[0], 1) * max_p_train_dropout
-    input_mask = mask * torch.bernoulli(1.0 - p_missing.expand_as(mask)).to(mask.dtype).to(mask.device)
-    if score_reconstruction:
-        if score_imputation:
-            # Score both reconstruction and imputation
-            scoring_mask = mask
-        else:
-            # Only score reconstruction
-            scoring_mask = input_mask
-    else:
-        # Only score imputation
-        scoring_mask = mask - input_mask
     return input_mask, scoring_mask

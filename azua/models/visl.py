@@ -1,44 +1,34 @@
 # This is required in python 3 to allow return types of the same class.
 from __future__ import annotations
 
+import json
+import math
 import os
+import warnings
+from typing import Callable, Dict, List, Optional, Tuple
+
 import numpy as np  # type: ignore
 import torch
-import json
-from torch.utils.data import DataLoader, TensorDataset
-import math
-from ..datasets.dataset import Dataset
 import torch.distributions as tdist
-
-from ..models.pvae_base_model import PVAEBaseModel
-from ..models.imodel import IModelForCausalInference
-
-from ..utils.training_objectives import negative_log_likelihood, kl_divergence
-from ..datasets.variables import Variables
-from typing import Dict, List, Optional, Tuple, Callable
-
 import torch.nn.functional as F
 from torch import nn
-from ..utils.data_mask_utils import to_tensors
+from torch.utils.data import DataLoader, TensorDataset
 
-from ..utils.nri_utils import (
-    kl_categorical,
-    piecewise_linear,
-    compute_dag_loss,
-    get_feature_indices_per_node,
-)
-from ..utils.training_objectives import get_input_and_scoring_masks
+from ..datasets.dataset import Dataset
+from ..datasets.variables import Variables
+from ..models.imodel import IModelForCausalInference
+from ..utils.helper_functions import to_tensors
 from ..utils.io_utils import save_json
-
-import warnings
-
-# import time
+from ..utils.nri_utils import compute_dag_loss, get_feature_indices_per_node, kl_categorical, piecewise_linear
+from ..utils.training_objectives import get_input_and_scoring_masks
+from ..utils.training_objectives import kl_divergence, negative_log_likelihood
+from .pvae_base_model import PVAEBaseModel
 
 
 class VISL(PVAEBaseModel, IModelForCausalInference):
     """
     Subclass of `models.pvae_base_model.PVAEBaseModel` representing the algorithm VISL (missing value imputation with causal discovery).
-    
+
     Requires file <data_dir>/<dataset_name>/adj_matrix.csv to evaluate causal discovery against ground truth.
     """
 
@@ -64,7 +54,7 @@ class VISL(PVAEBaseModel, IModelForCausalInference):
             gnn_iters: Number of message passing iterations for the GNN.
             shared_init_and_final_mappings: Whether all the nodes should use the same MLPs for the initial and final mappings.
             embedding_dim: Dimensionality of the nodes embedding.
-            init_prob: Initial probability of having edge. 
+            init_prob: Initial probability of having edge.
             simpler: Choose what MLP should be simpler (options are 'forward', 'backward', or None). Specifically,
                 'simpler' means to divide by 10 the dimensionality of the hidden layer of the corresponding MLP (with a minimum of 10 units).
         """
@@ -162,14 +152,14 @@ class VISL(PVAEBaseModel, IModelForCausalInference):
             use_dag_loss: Whether to use the DAG loss regularisation.
             output_variance: The variance for the output of the GNN based VAE.
             hard: Whether to use hard or soft samples for the distribution over edges (if hard=True, the edge weights are just 0/1).
-            two_steps: Whether to use the two-step variant of VISL. That is, the first half of training uses only 
+            two_steps: Whether to use the two-step variant of VISL. That is, the first half of training uses only
                 the forward MLP and the second half fixes the distribution over edges and only optimizes the forward and backward MLPs.
             lambda_nll: Lambda coefficient for the ELBO term negative-log-likelihood
             lambda_kl_z: Lambda coefficient for the ELBO term lambda*KL(q(z|x) || p(z))
             lambda_kl_A: Lambda coefficient for the ELBO term lambda*KL(q(A) || p(A))
             lambda_dagloss: Lambda coefficient for the dagloss term of the ELBO.
             sample_count: Number of samples to reconstruct.
-            
+
         Returns:
             train_results (dictionary): training_loss, KL divergence, NLL, dag_loss, training_loss_complete
         """
@@ -380,7 +370,12 @@ class VISL(PVAEBaseModel, IModelForCausalInference):
         raise NotImplementedError()
 
     def reconstruct(  # type: ignore[override]
-        self, data: torch.Tensor, mask: torch.Tensor, count: int, only_forward: bool = False, **kwargs,
+        self,
+        data: torch.Tensor,
+        mask: torch.Tensor,
+        count: int,
+        only_forward: bool = False,
+        **kwargs,
     ) -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
         """
         Reconstruct data by filling missing values and passing them through the GNN-based VAE.
@@ -422,7 +417,7 @@ class VISL(PVAEBaseModel, IModelForCausalInference):
 
 class GNN_based_VAE(nn.Module):
     """
-    GNN-based VAE that 
+    GNN-based VAE that
         1. encodes the variables into the initial embedding for each node,
         2. does the GNN message passing,
         3. decodes the final embedding for each node into the variable value.
@@ -445,7 +440,7 @@ class GNN_based_VAE(nn.Module):
             device: Device to load model to.
             skip_first: Whether to use a no-edge type.
             n_iters: Number of GNN message passing iterations.
-            num_nodes: Number of nodes. 
+            num_nodes: Number of nodes.
             shared_init_and_final_mappings: Whether all the nodes should use the same MLPs for the initial and final mappings.
             simpler: Choose what MLP should be simpler (options are 'forward', 'backward', or None). Specifically,
                 'simpler' means to divide by 10 the dimensionality of the hidden layer of the corresponding MLP (with a minimum of 10 units).
@@ -533,20 +528,20 @@ class GNN_based_VAE(nn.Module):
         sample_count: int,
     ):
         """
-        Forward pass of the GNN-based VAE. This includes: 
+        Forward pass of the GNN-based VAE. This includes:
             1. encoding the variables into the initial embedding for each node,
             2. doing the GNN message passing,
             3. decoding the final embedding for each node into the variable value.
-        
+
         Args:
             input: The input to the GNN-based VAE. Shape (batch_size, num_features).
             edges_weights: The edge weights used for the message passing. Add up to 1 in the last dim. Shape (sample_count, num_edges, num_edge_types).
             rel_rec: Tensor identifying the receiving node for each edge. The second dimension is a one-hot encoding of the receiver node. Shape (num_edges, num_nodes).
             rel_send: Tensor identifying the sending node for each edge. The second dimension is a one-hot encoding of the sending node. Shape (num_edges, num_nodes).
-            only_forward: Whether to use only the forward MLP for the message passing. 
+            only_forward: Whether to use only the forward MLP for the message passing.
             sample_count: Number of samples to reconstruct.
-            
-        Return: 
+
+        Return:
             output: The reconstructed data. Shape (sample_count, batch_size, num_features). sample_count is removed if 1.
             encoder_mean, encoder_logvar: Output of the encoder. Both are shape (batch_size, latent_dim)
         """

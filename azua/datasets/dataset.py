@@ -1,12 +1,11 @@
 import os
 import warnings
-from typing import cast, Optional, Tuple, Dict, Any, Union, List
+from typing import Any, Dict, Optional, Tuple, Union, cast
 
 import numpy as np
 from scipy.sparse import csr_matrix, issparse
 from torch_geometric.data import Data
 
-from .intervention_data import InterventionData
 from ..datasets.variables import Variables
 from ..utils.io_utils import save_json
 
@@ -156,62 +155,6 @@ class Dataset(BaseDataset):
             data_split=self._data_split,
         )
 
-    def to_causal(
-        self,
-        adjacency_data: Optional[np.ndarray],
-        subgraph_data: Optional[np.ndarray],
-        intervention_data: Optional[List[InterventionData]],
-        counterfactual_data: Optional[List[InterventionData]] = None,
-    ):
-        """
-        Return the dag version of this dataset.
-        """
-        return CausalDataset(
-            train_data=self._train_data,
-            train_mask=self._train_mask,
-            adjacency_data=adjacency_data,
-            subgraph_data=subgraph_data,
-            intervention_data=intervention_data,
-            counterfactual_data=counterfactual_data,
-            val_data=self._val_data,
-            val_mask=self._val_mask,
-            test_data=self._test_data,
-            test_mask=self._test_mask,
-            variables=self._variables,
-            data_split=self._data_split,
-        )
-
-    def to_temporal(
-        self,
-        adjacency_data: Optional[np.ndarray],
-        intervention_data: Optional[List[InterventionData]],
-        transition_matrix: Optional[np.ndarray],
-        counterfactual_data: Optional[List[InterventionData]],
-        train_segmentation: Optional[List[Tuple[int, int]]] = None,
-        test_segmentation: Optional[List[Tuple[int, int]]] = None,
-        val_segmentation: Optional[List[Tuple[int, int]]] = None,
-    ):
-        """
-        Return the dag version of this dataset.
-        """
-        return TemporalDataset(
-            train_data=self._train_data,
-            train_mask=self._train_mask,
-            transition_matrix=transition_matrix,
-            adjacency_data=adjacency_data,
-            intervention_data=intervention_data,
-            counterfactual_data=counterfactual_data,
-            val_data=self._val_data,
-            val_mask=self._val_mask,
-            test_data=self._test_data,
-            test_mask=self._test_mask,
-            variables=self._variables,
-            data_split=self._data_split,
-            train_segmentation=train_segmentation,
-            test_segmentation=test_segmentation,
-            val_segmentation=val_segmentation,
-        )
-
     @property
     def train_data_and_mask(self) -> Tuple[np.ndarray, np.ndarray]:
         # Add to avoid inconsistent type mypy error
@@ -305,107 +248,3 @@ class GraphDataset(SparseDataset):
         Return the torch_geometric.data.Data object from the GraphDataset object.
         """
         return self._graph_data
-
-
-class CausalDataset(Dataset):
-    """
-    Class to store the np.ndarray adjacency matrix and samples
-     from the intervention distributions as attributes of the Dataset object.
-    """
-
-    def __init__(
-        self,
-        train_data: np.ndarray,
-        train_mask: np.ndarray,
-        adjacency_data: Optional[np.ndarray],
-        subgraph_data: Optional[np.ndarray],
-        intervention_data: Optional[List[InterventionData]],
-        counterfactual_data: Optional[List[InterventionData]],
-        val_data: Optional[np.ndarray] = None,
-        val_mask: Optional[np.ndarray] = None,
-        test_data: Optional[np.ndarray] = None,
-        test_mask: Optional[np.ndarray] = None,
-        variables: Optional[Variables] = None,
-        data_split: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        super().__init__(train_data, train_mask, val_data, val_mask, test_data, test_mask, variables, data_split)
-
-        self._counterfactual_data = counterfactual_data
-        self._intervention_data = intervention_data
-        self._adjacency_data = adjacency_data
-        self._subgraph_data = subgraph_data
-
-    def get_adjacency_data_matrix(self) -> np.ndarray:
-        """
-        Return the np.ndarray dag adjacency matrix.
-        """
-        if self._adjacency_data is None:
-            raise TypeError("Adjacency matrix is None. No adjacency matrix has been loaded.")
-        return self._adjacency_data
-
-    def get_known_subgraph_mask_matrix(self) -> np.ndarray:
-        """
-        Return the np.ndarray dag mask matrix.
-        """
-        if self._subgraph_data is None:
-            raise TypeError("Adjacency matrix is None. No adjacency matrix has been loaded.")
-        return self._subgraph_data
-
-    def get_intervention_data(self) -> List[InterventionData]:
-        """
-        Return the list of interventions and samples from intervened distributions
-        """
-        if self._intervention_data is None:
-            raise TypeError("Intervention data is None. No intervention data has been loaded.")
-        return self._intervention_data
-
-    def get_counterfactual_data(self) -> List[InterventionData]:
-        """
-        Return the list of interventions and samples for the counterfactual data
-        """
-        if self._counterfactual_data is None:
-            raise TypeError("Counterfactual data is None. No counterfactual data has been loaded.")
-        return self._counterfactual_data
-
-
-class TemporalDataset(CausalDataset):
-    def __init__(
-        self,
-        train_data: np.ndarray,
-        train_mask: np.ndarray,
-        transition_matrix: Optional[np.ndarray],
-        adjacency_data: Optional[np.ndarray],
-        intervention_data: Optional[List[InterventionData]],
-        counterfactual_data: Optional[List[InterventionData]],
-        val_data: Optional[np.ndarray] = None,
-        val_mask: Optional[np.ndarray] = None,
-        test_data: Optional[np.ndarray] = None,
-        test_mask: Optional[np.ndarray] = None,
-        variables: Optional[Variables] = None,
-        data_split: Optional[Dict[str, Any]] = None,
-        train_segmentation: Optional[List[Tuple[int, int]]] = None,
-        test_segmentation: Optional[List[Tuple[int, int]]] = None,
-        val_segmentation: Optional[List[Tuple[int, int]]] = None,
-    ) -> None:
-        super(CausalDataset, self).__init__(
-            train_data, train_mask, val_data, val_mask, test_data, test_mask, variables, data_split
-        )
-
-        self._counterfactual_data = counterfactual_data
-        self._intervention_data = intervention_data
-        self._adjacency_data = adjacency_data
-        self._transition_matrix = transition_matrix
-        # _train_segmentation stored as a list of tuples (start, end). For example, if the segmentation is
-        # [(0, 10), (11, 15)], it means the first time series index starts with 0 to 10th row; and the second time series
-        # index  with 11 to 15th row.
-        self._train_segmentation = train_segmentation
-        self._test_segmentation = test_segmentation
-        self._val_segmentation = val_segmentation
-
-    def get_transition_matrix(self) -> np.ndarray:
-        """
-        Return the np.ndarray transition matrix.
-        """
-        if self._transition_matrix is None:
-            raise TypeError("Transition matrix is None. No transition matrix has been loaded.")
-        return self._transition_matrix

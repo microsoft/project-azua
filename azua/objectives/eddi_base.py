@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional, Tuple, Dict, Union, overload
+from typing import Dict, List, Optional, Tuple, Union, overload
 
 import numpy as np
 import pandas as pd
@@ -7,11 +7,12 @@ import torch
 from scipy.sparse import csr_matrix, issparse
 
 from ..models.imodel import IModelForObjective
-from ..objectives.objective import Objective
+from ..utils.data_mask_utils import add_to_data, add_to_mask
+from ..utils.helper_functions import to_tensors
 from ..utils.io_utils import read_json_as, save_json
-from ..utils.training_objectives import kl_divergence
 from ..utils.torch_utils import create_dataloader
-from ..utils.data_mask_utils import add_to_data, add_to_mask, to_tensors
+from ..utils.training_objectives import kl_divergence
+from .objective import Objective
 
 
 class EDDIBaseObjective(Objective):
@@ -36,14 +37,20 @@ class EDDIBaseObjective(Objective):
     @overload
     @classmethod
     def calc_and_save_vamp_prior_info_gain(
-        cls, model: IModelForObjective, vamp_prior_data: Tuple[np.ndarray, np.ndarray], sample_count: int,
+        cls,
+        model: IModelForObjective,
+        vamp_prior_data: Tuple[np.ndarray, np.ndarray],
+        sample_count: int,
     ):
         ...
 
     @overload
     @classmethod
     def calc_and_save_vamp_prior_info_gain(
-        cls, model: IModelForObjective, vamp_prior_data: Tuple[csr_matrix, csr_matrix], sample_count: int,
+        cls,
+        model: IModelForObjective,
+        vamp_prior_data: Tuple[csr_matrix, csr_matrix],
+        sample_count: int,
     ):
         ...
 
@@ -58,7 +65,7 @@ class EDDIBaseObjective(Objective):
             sample_count: Number of samples to use in calculating information gain
 
         Returns:
-            info_gain_dict: Dictionary containing estimated information gains for all features computed using VAMP 
+            info_gain_dict: Dictionary containing estimated information gains for all features computed using VAMP
                 Prior.
         """
         if issparse(vamp_prior_data[0]):
@@ -84,7 +91,7 @@ class EDDIBaseObjective(Objective):
 
         Args:
             data (numpy array of shape (batch_size, feature_count)): Contains unprocessed, observed data.
-            data_mask (numpy array of shape (batch_size, feature_count)): Contains mask where 1 is observed in the 
+            data_mask (numpy array of shape (batch_size, feature_count)): Contains mask where 1 is observed in the
                 underlying data, 0 is missing.
             obs_mask (numpy array of shape (batch_size, feature_count)): Contains mask where 1 indicates a feature that has
                 been observed before or during active learning, 0 a feature that has not yet been observed and could be
@@ -92,22 +99,24 @@ class EDDIBaseObjective(Objective):
 
         Returns:
             rewards (numpy array of shape (batch_size, group_count)): Contains information gain for all observable groups of variables.
-                Contains np.nan if the group of variables is observed already (1 in obs_mask for all of the group's variables) 
+                Contains np.nan if the group of variables is observed already (1 in obs_mask for all of the group's variables)
                 or not present in the data (0 in data_mask for all of the group's variables).
         """
-        rewards = np.full((data.shape[0], len(self._model.variables.query_group_idxs)), np.nan)
+        rewards = np.full((data.shape[0], len(self._model.variables.group_idxs)), np.nan)
 
         # Create mask indicating with a 1 which query groups cannot be observed in each row, because all of
         # group's features do not have a value in the underlying data (i.e. its value in data_mask is 0).
-        query_group_masks = []
-        for idxs in self._model.variables.query_group_idxs:
-            query_group_masks.append((1 - data_mask[:, idxs].max(axis=1)).reshape(-1, 1))
-        group_mask = np.hstack(query_group_masks)
+        group_masks = []
+        for idxs in self._model.variables.group_idxs:
+            group_masks.append((1 - data_mask[:, idxs].max(axis=1)).reshape(-1, 1))
+        group_mask = np.hstack(group_masks)
 
         if self._use_vamp_prior:
             # For completely unobserved data, use precomputed info gain per variable
             vamp_rows = np.where(obs_mask.sum(axis=1) == 0)
-            vamp_prior_info_dicts = read_json_as(os.path.join(self._model.save_dir, self._vamp_prior_info_gain_path), list)
+            vamp_prior_info_dicts = read_json_as(
+                os.path.join(self._model.save_dir, self._vamp_prior_info_gain_path), list
+            )
             vamp_prior_info_array = np.array(pd.DataFrame(vamp_prior_info_dicts, index=[0]))[0]
             rewards[vamp_rows] = vamp_prior_info_array
 
@@ -120,9 +129,11 @@ class EDDIBaseObjective(Objective):
 
         if len(not_vamp_rows) > 0:
             batch_size = self._batch_size or len(not_vamp_rows)
-            (proc_data, proc_data_mask, proc_obs_mask,) = self._model.data_processor.process_data_and_masks(
-                data, data_mask, obs_mask
-            )
+            (
+                proc_data,
+                proc_data_mask,
+                proc_obs_mask,
+            ) = self._model.data_processor.process_data_and_masks(data, data_mask, obs_mask)
             dataloader = create_dataloader(
                 not_vamp_rows,
                 proc_data,
@@ -137,7 +148,10 @@ class EDDIBaseObjective(Objective):
             device = self._model.get_device()
             for rows, data_, obs_mask_, data_mask_ in dataloader:
                 info_gains = self._information_gain(
-                    data_.to(device), data_mask_.to(device), obs_mask_.to(device), as_array=True,
+                    data_.to(device),
+                    data_mask_.to(device),
+                    obs_mask_.to(device),
+                    as_array=True,
                 )
                 rewards[rows.to(torch.long).cpu().numpy()] = info_gains
 
@@ -159,7 +173,7 @@ class EDDIBaseObjective(Objective):
 
         Args:
             data (shape (batch_size, proc_feature_count)): processed, observed data.
-            data_mask (shape (batch_size, proc_feature_count)): processed mask where 1 is observed in the 
+            data_mask (shape (batch_size, proc_feature_count)): processed mask where 1 is observed in the
                 underlying data, 0 is missing.
             obs_mask (shape (batch_size, proc_feature_count)): indicates which
                 features have already been observed (i.e. which to condition the information gain calculations on).
@@ -202,7 +216,7 @@ class EDDIBaseObjective(Objective):
                 q_o_phi = self._model.encode(x_o_phi, mask_o_phi)
 
             rewards_list = []
-            for group_idxs in self._model.variables.query_group_idxs:
+            for group_idxs in self._model.variables.group_idxs:
                 # Can probably be further optimised by stacking masks for different vars
                 if all(not is_variable_to_observe[idx] for idx in group_idxs):
                     diff = torch.full((batch_size,), np.nan)
@@ -244,9 +258,9 @@ class EDDIBaseObjective(Objective):
         # Assume group not queriable if none of features queriable. 1 indicates already observed
         # (not queriable) so take min within each group.
         feature_mask = self._model.data_processor.revert_mask(obs_mask.cpu().numpy())
-        query_group_masks = []
-        for idxs in self._model.variables.query_group_idxs:
-            query_group_masks.append(feature_mask[:, idxs].min(axis=1).reshape(-1, 1))
-        group_mask = np.hstack(query_group_masks)
+        group_masks = []
+        for idxs in self._model.variables.group_idxs:
+            group_masks.append(feature_mask[:, idxs].min(axis=1).reshape(-1, 1))
+        group_mask = np.hstack(group_masks)
         rewards[group_mask.astype(bool)] = np.nan
         return rewards

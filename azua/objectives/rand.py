@@ -1,12 +1,11 @@
 import numpy as np
 
-from ..objectives.objective import Objective
-
 from ..models.imodel import IModelForObjective
+from .objective import Objective
 
 
 class RandomObjective(Objective):
-    """"
+    """
     Random objective.
     """
 

@@ -2,9 +2,9 @@ from typing import Tuple
 
 import torch
 
-from .partial_vae import PartialVAE
-from .bayesian_vae import BayesianVAE
 from ..models.torch_model import TorchModel
+from .bayesian_vae import BayesianVAE
+from .partial_vae import PartialVAE
 
 
 class BayesianPartialVAE(PartialVAE, TorchModel):

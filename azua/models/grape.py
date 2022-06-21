@@ -1,4 +1,4 @@
-from ..models.graph_neural_network import GraphNeuralNetwork
+from .graph_neural_network import GraphNeuralNetwork
 
 
 class GRAPE(GraphNeuralNetwork):
@@ -12,7 +12,7 @@ class GRAPE(GraphNeuralNetwork):
 
     GNN model that employs edge embeddings.
     Also, it adopts edge dropouts that are applied throughout all message-passing layers.
-    Compared to the GRAPE proposed in the paper, because of the memory issue, 
+    Compared to the GRAPE proposed in the paper, because of the memory issue,
     we do not initialize nodes with one-hot vectors nor constants (ones).
     """
 

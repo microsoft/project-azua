@@ -1,10 +1,11 @@
-from enum import Enum
 import math
-import torch
-from typing import cast, Optional
+from enum import Enum
+from typing import Optional, cast
 
-from ..models.set_encoder_base_model import SetEncoderBaseModel
-from ..models.feature_embedder import FeatureEmbedder
+import torch
+
+from .feature_embedder import FeatureEmbedder
+from .set_encoder_base_model import SetEncoderBaseModel
 
 
 class TransformerSetEncoder(SetEncoderBaseModel):
@@ -281,7 +282,10 @@ class SetTransformer(torch.nn.Module):
         cls, embedding_dim: int, elementwise_transform_type: ElementwiseTransformType
     ) -> torch.nn.Sequential:
         if elementwise_transform_type == cls.ElementwiseTransformType.single:  # ST Implementation default
-            return torch.nn.Sequential(torch.nn.Linear(embedding_dim, embedding_dim), torch.nn.ReLU(),)
+            return torch.nn.Sequential(
+                torch.nn.Linear(embedding_dim, embedding_dim),
+                torch.nn.ReLU(),
+            )
 
         else:
             assert elementwise_transform_type == cls.ElementwiseTransformType.double  # AIAYN Implementation default

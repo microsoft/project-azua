@@ -1,29 +1,24 @@
-from logging import Logger
-import numpy as np
 import os
+from logging import Logger
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
+import numpy as np
 from scipy.sparse import csr_matrix
 
-from ..imetrics_logger import IMetricsLogger
+from ...experiment.imetrics_logger import IMetricsLogger
 from ...models.imodel import IModelForObjective
-from ...models.transformer_imputer import TransformerImputer
+from ...utils.plot_functions import plot_mean_target_curves, plot_rewards_hist, plot_target_curves
 from ...utils.torch_utils import set_random_seeds
+from ...models.transformer_imputer import TransformerImputer
 from ...utils.active_learning import (
-    run_active_learning,
     compute_rmse_curves,
     plot_and_save_rmse_curves,
-    save_metrics_json,
-    save_observations,
-    plot_info_gain_bar_charts,
     plot_choices_line_chart,
     plot_imputation_violin_plots_active_learning,
-)
-
-from ...utils.plot_functions import (
-    plot_target_curves,
-    plot_mean_target_curves,
-    plot_rewards_hist,
+    plot_info_gain_bar_charts,
+    run_active_learning,
+    save_metrics_json,
+    save_observations,
 )
 
 

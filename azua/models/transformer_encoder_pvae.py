@@ -1,4 +1,4 @@
-from ..models.partial_vae import PartialVAE
+from .partial_vae import PartialVAE
 
 
 class TransformerEncoderPVAE(PartialVAE):

@@ -1,4 +1,4 @@
-from ..models.graph_neural_network import GraphNeuralNetwork
+from .graph_neural_network import GraphNeuralNetwork
 
 
 class GCN(GraphNeuralNetwork):

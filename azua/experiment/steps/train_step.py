@@ -1,11 +1,12 @@
-from ...models.torch_model import TorchModel
-from ..imetrics_logger import IMetricsLogger
-from ...datasets.variables import Variables
-from ...models.models_factory import create_model
-from ...datasets.dataset import Dataset, SparseDataset
 from logging import Logger
 from typing import Any, Dict, Optional, Union
+
+from ...datasets.dataset import Dataset, SparseDataset
+from ...datasets.variables import Variables
 from ...models.model import Model
+from ...models.models_factory import create_model
+from ...models.torch_model import TorchModel
+from ..imetrics_logger import IMetricsLogger
 
 
 def run_train_main(

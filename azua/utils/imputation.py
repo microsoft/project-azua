@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Any, Dict, Optional, Union, Tuple, overload
+from typing import Any, Dict, Optional, Tuple, Union, overload
 
 import matplotlib
 
@@ -11,11 +11,11 @@ import pandas as pd
 import seaborn as sns
 from scipy.sparse import csr_matrix, issparse
 
-from ..models.imodel import IModelForImputation
-from ..utils.imputation_statistics_utils import ImputationStatistics as ImputeStats
-from ..utils.metrics import compute_metrics
 from ..datasets.dataset import Dataset, SparseDataset
 from ..datasets.variables import Variables
+from ..models.imodel import IModelForImputation
+from .imputation_statistics_utils import ImputationStatistics as ImputeStats
+from ..utils.metrics import compute_metrics
 
 
 def run_imputation(
@@ -32,7 +32,7 @@ def run_imputation(
         model: Model to use.
         data (shape (user_count, variable_count)): Data to perform imputation on. Should contain both the
             observed data and prediction target ground truths: these will be separated using masks.
-        observed_mask (shape (user_count, variable_count)): Mask for observed values in data. 1 is observed, 0 is 
+        observed_mask (shape (user_count, variable_count)): Mask for observed values in data. 1 is observed, 0 is
             missing.
         impute_config (dictionary): Dictionary containing options for imputation.
         vamp_prior_data (tuple of numpy arrays): Tuple of (data, mask). Used for vamp prior samples.
@@ -56,14 +56,14 @@ def run_imputation_with_stats(
     vamp_prior_data,
 ):
     """
-    Run missing value imputation, conditioned on the values in data marked as observed in observed_mask, and compute 
+    Run missing value imputation, conditioned on the values in data marked as observed in observed_mask, and compute
     statistics for the imputed values across multiple imputation samples.
 
     Args:
         model: Model to use.
         data (shape (user_count, variable_count)): Data to perform imputation on. Should contain both the
             observed data and prediction target ground truths: these will be separated using masks.
-        observed_mask (shape (user_count, variable_count)): Mask for observed values in data. 1 is observed, 0 is 
+        observed_mask (shape (user_count, variable_count)): Mask for observed values in data. 1 is observed, 0 is
             missing.
         variables (Variables): Variables object containing variables metadata for the data.
         impute_config (dictionary): Dictionary containing options for inference.
@@ -131,19 +131,19 @@ def eval_imputation(
     Returns:
         train_obs_mask: Boolean mask where 1 indicates features treated as observed during training set imputation and 0
             indicates those treated as unobserved.
-        train_target_mask: Boolean mask where 1 indicates features treated as prediction targets during training set 
+        train_target_mask: Boolean mask where 1 indicates features treated as prediction targets during training set
             imputation and 0 indicates those not treated as prediction targets.
         train_imputations: If split_type == "rows", imputed data for the training set rows. Otherwise None.
         train_metrics: If split_type == "rows", metrics computed on the training set rows. Otherwise None.
         val_obs_mask: Boolean mask where 1 indicates features treated as observed during validation set imputation and 0
             indicates those treated as unobserved.
-        val_target_mask: Boolean mask where 1 indicates features treated as prediction targets during validation set 
+        val_target_mask: Boolean mask where 1 indicates features treated as prediction targets during validation set
             imputation and 0 indicates those not treated as prediction targets.
         val_imputations: If split_type == "rows", imputed data for the validation set rows. Otherwise None.
         val_metrics: Metrics computed on the validation set.
         test_obs_mask: Boolean mask where 1 indicates features treated as observed during test set imputation and 0
             indicates those treated as unobserved.
-        test_target_mask: Boolean mask where 1 indicates features treated as prediction targets during test set 
+        test_target_mask: Boolean mask where 1 indicates features treated as prediction targets during test set
             imputation and 0 indicates those not treated as prediction targets.
         test_imputations: If split_type == "rows", imputed data for the test set rows. If split_type == "elements",
             imputed data for the whole dataset conditioned on the training set.
@@ -237,7 +237,7 @@ def split_mask(mask: csr_matrix, target_prob: float = 0.3, seed: int = None) -> 
 
 def split_mask(mask, target_prob=0.3, seed=None):
     """
-    Split a mask into an observed_mask and target_mask, by randomly marking some features that were previously 
+    Split a mask into an observed_mask and target_mask, by randomly marking some features that were previously
     observed as prediction targets with probability 'target_prob'. The outputs observed_mask and target_mask should
     produce the input mask when summed.
 

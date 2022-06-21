@@ -1,10 +1,9 @@
 from abc import abstractmethod
-
 from typing import Any, Optional, Union
 
-from ..base import BayesianMixin
-
 import torch
+
+from ..base import BayesianMixin
 
 
 class VariationalMixin(BayesianMixin):

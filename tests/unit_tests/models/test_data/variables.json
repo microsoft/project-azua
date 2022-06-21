@@ -1,0 +1,29 @@
+{
+    "metadata_variables": [],
+    "variables": [
+        {
+            "id": 0,
+            "lower": -3,
+            "name": "ZERO",
+            "query": true,
+            "type": "continuous",
+            "upper": 3
+        },
+        {
+            "id": 1,
+            "lower": -3,
+            "name": "ONE",
+            "query": true,
+            "type": "continuous",
+            "upper": 3
+        },
+        {
+            "id": 2,
+            "lower": -3,
+            "name": "TWO",
+            "query": true,
+            "type": "continuous",
+            "upper": 3
+        }
+    ]
+}

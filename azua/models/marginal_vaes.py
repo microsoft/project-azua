@@ -1,18 +1,22 @@
-from ..utils.exceptions import ONNXNotImplemented
-
-from ..models.torch_vae import TorchVAE
-
-from ..models.vae import VAE
-from ..datasets.variables import Variables
 import os
 from typing import Any, Dict, Tuple
 
 import torch
 
+from ..datasets.variables import Variables
+from ..models.torch_model import ONNXNotImplemented
+from .torch_vae import TorchVAE
+from .vae import VAE
+
 
 class MarginalVAEs(TorchVAE):
     def __init__(
-        self, model_id: str, variables: Variables, save_dir: str, device: torch.device, **model_config_dict,
+        self,
+        model_id: str,
+        variables: Variables,
+        save_dir: str,
+        device: torch.device,
+        **model_config_dict,
     ):
         # TODO: Once we extract part of this class logic (encode(), decode() and _marginal_vaes) into
         # StackedEncoder and StackedDecoder, we could just create instances of these classes

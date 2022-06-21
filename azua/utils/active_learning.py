@@ -1,6 +1,7 @@
 import csv
 import logging
 import os
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import matplotlib
 from scipy.sparse import csr_matrix
@@ -8,23 +9,21 @@ from scipy.sparse import csr_matrix
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from tqdm import trange
 from scipy.sparse import spmatrix
+from tqdm import trange
 
 from ..datasets.variables import Variable, Variables
 from ..models.imodel import IModelForObjective
+from ..utils.helper_functions import maintain_random_state
+from .imputation_statistics_utils import ImputationStatistics
+from ..utils.io_utils import save_json
+from ..utils.metrics import get_metric
+from ..utils.plot_functions import violin_plot_imputations
+from ..utils.torch_utils import set_random_seeds
 from ..models.transformer_imputer import TransformerImputer
 from ..objectives.objective import Objective
 from ..objectives.objectives_factory import create_objective
-from ..utils.helper_functions import maintain_random_state
-from ..utils.io_utils import save_json
-from ..utils.metrics import get_metric
-from ..utils.torch_utils import set_random_seeds
-from ..utils.active_learning_eedi import run_active_learning_strategy_eedi
-from ..utils.imputation_statistics_utils import ImputationStatistics
-from ..utils.plot_functions import violin_plot_imputations
-
-from typing import List, Optional, Tuple, Dict, Any, Union
+from .active_learning_eedi import run_active_learning_strategy_eedi
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +47,7 @@ def save_observations(observations: np.ndarray, variables: Variables, path):
     save_json(output_dict, save_ids_path)
 
     # Convert ids to short names.
-    grp_id_to_short_name = {grp_id: grp_name for grp_id, grp_name in enumerate(variables.query_group_names)}
+    grp_id_to_short_name = {grp_id: grp_name for grp_id, grp_name in enumerate(variables.group_names)}
     grp_id_to_short_name[-1] = "None"
 
     with open(save_names_path, "w") as save_file:
@@ -104,12 +103,26 @@ def run_active_learning(
     with maintain_random_state():
         if objective_config["imputation_method"] is None:
             imputed_values, all_observations, info_gains = run_active_learning_strategy(
-                objective, model, test_data, test_mask, vamp_prior_data, max_steps, impute_config, average=average,
+                objective,
+                model,
+                test_data,
+                test_mask,
+                vamp_prior_data,
+                max_steps,
+                impute_config,
+                average=average,
             )
         else:
             # In this case the dataset is eedi
             (imputed_values, all_observations, info_gains,) = run_active_learning_strategy_eedi(
-                objective, model, test_data, test_mask, vamp_prior_data, max_steps, impute_config, objective_config,
+                objective,
+                model,
+                test_data,
+                test_mask,
+                vamp_prior_data,
+                max_steps,
+                impute_config,
+                objective_config,
             )
 
     return imputed_values, all_observations, info_gains
@@ -127,9 +140,9 @@ def run_active_learning_strategy(
     average: bool = True,
 ):
     if max_steps is None:
-        max_steps = len(model.variables.query_group_idxs)
+        max_steps = len(model.variables.group_idxs)
     else:
-        max_steps = min(max_steps, len(model.variables.query_group_idxs))
+        max_steps = min(max_steps, len(model.variables.group_idxs))
     user_count, feature_count = data.shape
 
     # TODO This was introduced to ensure the violin plot was sensible, but do we always want to override like this?
@@ -167,7 +180,7 @@ def run_active_learning_strategy(
         obs_mask = initial_obs_mask
 
     for step_idx in trange(max_steps):
-        next_qs, info_gains = select_feature(data, mask, obs_mask, objective, model.variables.query_group_idxs)
+        next_qs, info_gains = select_feature(data, mask, obs_mask, objective, model.variables.group_idxs)
 
         # Both next_qs and info_gains are of length user_count
         for idx, row_choices in enumerate(next_qs):
@@ -193,7 +206,7 @@ def select_feature(
     mask: np.ndarray,
     obs_mask: np.ndarray,
     objective: Objective,
-    query_group_idxs: List[List[int]],
+    group_idxs: List[List[int]],
     question_count: int = 1,
 ):
     with maintain_random_state():
@@ -203,7 +216,7 @@ def select_feature(
         for i in range(len(obs_mask)):
             for j in next_qs[i]:
                 # Select all features if we use question_count > 1
-                obs_mask[i, query_group_idxs[j]] = 1
+                obs_mask[i, group_idxs[j]] = 1
 
         # We will always have some data here, so vamp_prior_data is never used.
         # imputed_mc = model.impute(data, obs_mask, impute_config, vamp_prior_data=None, average=False)
@@ -273,7 +286,11 @@ def draw_and_save_active_learning_plots(
         choices_name = "{}_choices.png".format(obj)
         alpha = 10 / data.shape[0]
         plot_choices_line_chart(
-            step_ids[obj], model.variables, save_dir, save_name=choices_name, alpha=alpha,
+            step_ids[obj],
+            model.variables,
+            save_dir,
+            save_name=choices_name,
+            alpha=alpha,
         )
 
     # Plot shared plots
@@ -359,7 +376,7 @@ def compute_rmse_curves(
 
 def plot_and_save_rmse_curves(metrics: Dict, save_dir: str, variables: Variables) -> None:
     """
-    
+
     Plot the RMSE per step and save plotted data into a JSON file.
 
     Args:
@@ -430,7 +447,7 @@ def plot_pll_curves(
 
     step_count = max(len(mask) for mask in masks.values())
     steps = np.arange(step_count)
-    for group_name, group_idxs in zip(model.variables.query_group_names, model.variables.query_group_idxs):
+    for group_name, group_idxs in zip(model.variables.group_names, model.variables.group_idxs):
         plt.clf()
         plt.figure(figsize=(6.4, 4.8))
         save_path = os.path.join(save_dir, "{}_pll.png".format(group_name))
@@ -501,7 +518,7 @@ def plot_info_gain_bar_charts(info_gain_list, variables: Variables, save_dir, us
 
         x_labels = []
         y_values = []
-        for group_id, group_name in enumerate(variables.query_group_names):
+        for group_id, group_name in enumerate(variables.group_names):
             x_labels.append(group_name)
             info_gain = info_gain_for_user.get(group_id, 0)  # Get info gain, default to 0 if not present.
             y_values.append(info_gain)
@@ -553,8 +570,8 @@ def plot_choices_line_chart(observations, variables: Variables, save_dir, steps=
         _, steps = observations.shape
 
     xs = np.arange(1, steps + 1)
-    y_labels = variables.query_group_names
-    y_range = np.arange(0, len(variables.query_group_names))
+    y_labels = variables.group_names
+    y_range = np.arange(0, len(variables.group_names))
 
     plt.clf()
     plt.xticks(xs)
@@ -596,7 +613,10 @@ def plot_step_accuracy(step_ids, truth_key=None, save_dir=None):
     plt.title("Selection accuracy of each step against {} selections".format(truth_key))
 
     plt.savefig(
-        os.path.join(save_dir, "step_accuracy.png"), format="png", dpi=200, bbox_inches="tight",
+        os.path.join(save_dir, "step_accuracy.png"),
+        format="png",
+        dpi=200,
+        bbox_inches="tight",
     )
     plt.close()
     save_json(plot_values, os.path.join(save_dir, "step_accuracy.json"))
@@ -605,7 +625,11 @@ def plot_step_accuracy(step_ids, truth_key=None, save_dir=None):
 
 
 def plot_imputation_violin_plots_active_learning(
-    all_imputations_mc: np.ndarray, variables: Variables, all_step_ids: np.ndarray, save_dir: str, user_idx: int = 0,
+    all_imputations_mc: np.ndarray,
+    variables: Variables,
+    all_step_ids: np.ndarray,
+    save_dir: str,
+    user_idx: int = 0,
 ):
     """
     Plot violin plot for the imputation of all groups of variables at each step.
@@ -664,8 +688,8 @@ def get_masks_from_step_ids(all_step_ids: np.ndarray, variables: Variables, init
     all_masks = [mask.copy()]
 
     for step in range(steps):
-        query_group_idxs_list = [i for i in variables.query_group_idxs]
-        step_features_idxs = [query_group_idxs_list[group_id] for group_id in all_step_ids[:, step]]
+        group_idxs_list = [i for i in variables.group_idxs]
+        step_features_idxs = [group_idxs_list[group_id] for group_id in all_step_ids[:, step]]
         for row_idx in range(len(mask)):
             mask[row_idx, step_features_idxs[row_idx]] = 1
         all_masks.append(mask.copy())
@@ -675,8 +699,8 @@ def get_masks_from_step_ids(all_step_ids: np.ndarray, variables: Variables, init
 
 def save_info_gain_normalizer(objective: Objective, model: IModelForObjective):
     """
-    Save a scalar normalizing constant for computing normalized information gain esimates. This normalizer is 
-    computed by taking the largest estimated information gain available when no features are observed, and all 
+    Save a scalar normalizing constant for computing normalized information gain esimates. This normalizer is
+    computed by taking the largest estimated information gain available when no features are observed, and all
     features can be selected.
 
     This normalizer is saved to the model's `save_dir` as "info_gain_normalizer.npy".
@@ -694,7 +718,10 @@ def save_info_gain_normalizer(objective: Objective, model: IModelForObjective):
 
     with maintain_random_state():
         _, zero_step_info_gain = objective.get_next_questions(
-            empty_data, data_mask=empty_data_mask, obs_mask=empty_mask, question_count=1,
+            empty_data,
+            data_mask=empty_data_mask,
+            obs_mask=empty_mask,
+            question_count=1,
         )
     max_val = max(zero_step_info_gain[0].values()) if len(zero_step_info_gain[0]) > 0 else 1
     # Set to 1 if max_val is somehow <= 0 to avoid reversing the ordering of info gains/divison by zero

@@ -1,18 +1,18 @@
-from abc import ABC, abstractmethod
 import logging
 import os
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional, Tuple, Union, cast, overload
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from typing import Any, Dict, cast, List, Optional, Tuple, Union, overload
+from dependency_injector.wiring import Provide, inject
 from scipy.sparse import csr_matrix, issparse
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
-from dependency_injector.wiring import inject, Provide
 
-from ..experiment.azua_context import AzuaContext
 from ..datasets.dataset import Dataset, SparseDataset
 from ..datasets.variables import Variables
+from ..experiment.azua_context import AzuaContext
 from ..utils.io_utils import read_json_as
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class DatasetLoader(ABC):
             random_state: An integer or a tuple of integers to be used as the splitting random state.
             max_num_rows: Maximum number of rows to include when reading data files.
             negative_sample: Whether to perform negative sampling after loading the dataset. Negative sampling requires
-                a file negative_sampling_levels.csv in the dataset folder, and negative samples for each row will be 
+                a file negative_sampling_levels.csv in the dataset folder, and negative samples for each row will be
                 drawn from features of a greater level than all those observed in the row.
         Returns:
             dataset: Dataset or SparseDataset object, holding the data and variable metadata.
@@ -116,10 +116,10 @@ class DatasetLoader(ABC):
     @staticmethod
     def negative_sample(data, data_mask, levels: Dict[int, int]):
         """
-        Apply negative sampling to an input data array and mask. Each feature is assigned an integer level in the 
-        dictionary `levels`, corresponding to e.g. question difficulty, and for each row we sample additional negative 
-        (0) values from all features with a level greater the max level of all features observed in the row. Negative 
-        samples will be drawn from these features until an equal number of positive (>0) and negative (0) values exist 
+        Apply negative sampling to an input data array and mask. Each feature is assigned an integer level in the
+        dictionary `levels`, corresponding to e.g. question difficulty, and for each row we sample additional negative
+        (0) values from all features with a level greater the max level of all features observed in the row. Negative
+        samples will be drawn from these features until an equal number of positive (>0) and negative (0) values exist
         in the row, if possible.
 
         Note: this method currently assumes that negative responses in the dataset take a value of 0.

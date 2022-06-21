@@ -1,8 +1,8 @@
-from typing import Optional, Dict, Any, overload
+from typing import Any, Dict, Optional, overload
 
 import numpy as np
-from scipy.sparse import csr_matrix
 import torch
+from scipy.sparse import csr_matrix
 from tqdm import tqdm
 
 from ..models.imodel import IBatchImputer
@@ -56,7 +56,7 @@ def impute(model, data, mask, impute_config_dict=None, *, average=True, **vamp_p
         vamp_prior_kwargs (dict): extra inputs to impute_processed_batch used by specific models, e.g. processed vamp prior data in PVAEBaseModel.
 
     Returns:
-        imputed (numpy array of shape (num_rows, input_dim) or (sample_count, num_rows, input_dim)): 
+        imputed (numpy array of shape (num_rows, input_dim) or (sample_count, num_rows, input_dim)):
             Input data with missing values filled in, returning averaged or sampled imputations depending
             on whether average=True or average=False.
     """
@@ -76,7 +76,12 @@ def impute(model, data, mask, impute_config_dict=None, *, average=True, **vamp_p
     # Note that even if using sparse data, we use a dense array here since this array will have all values filled.
     imputed = np.empty((sample_count, *processed_data.shape), dtype=processed_data.dtype)
     with torch.no_grad():
-        dataloader = create_dataloader(processed_data, processed_mask, batch_size=batch_size, sample_randomly=False,)
+        dataloader = create_dataloader(
+            processed_data,
+            processed_mask,
+            batch_size=batch_size,
+            sample_randomly=False,
+        )
 
         for idx, (processed_data_batch, processed_mask_batch) in enumerate(tqdm(dataloader)):
             processed_data_batch = processed_data_batch.to(model.get_device())

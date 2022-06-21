@@ -3,31 +3,30 @@ from __future__ import annotations
 
 import logging
 import os
-from tqdm import trange  # type: ignore
-from typing import Dict, List, Optional, Callable, Any, TypeVar, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 
 import numpy as np
 import torch
-from torch import Tensor
 import torch.nn as nn
-from torch.nn import ReLU, Linear, Sigmoid, Parameter
-from torch.utils.tensorboard import SummaryWriter
 import torch.nn.functional as F
-from torch_geometric.data import NeighborSampler
+from dependency_injector.wiring import Provide, inject
+from torch import Tensor
+from torch.nn import Linear, Parameter, ReLU, Sigmoid
+from torch.utils.tensorboard import SummaryWriter
 from torch_geometric.data import Data as GraphData
+from torch_geometric.data import NeighborSampler
 from torch_geometric.typing import Adj
 from torch_geometric.utils.dropout import dropout_adj
-from transformers import BertModel
-from transformers import BertTokenizer
+from tqdm import trange  # type: ignore
+from transformers import BertModel, BertTokenizer
 
+from ..datasets.dataset import GraphDataset
+from ..datasets.variables import Variables
 from ..experiment.azua_context import AzuaContext
 from ..models.torch_model import TorchModel
-from ..models.graph_convs import ConvModel, GATModel
-from ..utils.torch_utils import generate_fully_connected
 from ..utils.io_utils import save_json
-from ..datasets.variables import Variables
-from ..datasets.dataset import GraphDataset
-from dependency_injector.wiring import inject, Provide
+from ..utils.torch_utils import generate_fully_connected
+from .graph_convs import ConvModel, GATModel
 
 # Create type variable with upper bound of `GraphNeuralNetwork`, in order to precisely specify return types of create/load
 # methods as the subclass on which they are called
@@ -91,7 +90,7 @@ class GraphNeuralNetwork(TorchModel):
             edge_input_dim: Dimensionality of the input edges. For categorical labels, the value corresponds
                 to the number of categories. For continuous or binary labels, the value is set to 1.
             prediction_metadata_dim: Dimensionality of edge metadata that is used in prediction MLP.
-            node_dim: Dimensionality of the node embeddings. 
+            node_dim: Dimensionality of the node embeddings.
             message_dim: Dimensionality of the edge embeddings.
             n_layer: Number of the message passing layers for training and inference.
             node_update_dropout: Dropout rate for the MLP that updates the node embeddings after the message passing.
@@ -110,14 +109,14 @@ class GraphNeuralNetwork(TorchModel):
             use_transformer: Whether or not to use transformer to compute context-aware word embeddings for item nodes.
             corgi_attention_method: Choose from ("NONE", "concat", "dot-product") for computing user-word attentions.
                 Corresponds to equation (6) in the paper. When use_transformer is set to True, corgi_attention_method
-                is forced to be chosen from ("concat", "dot-product"). If use_transformer is set to False, 
+                is forced to be chosen from ("concat", "dot-product"). If use_transformer is set to False,
                 corgi_attention_method needs to be "NONE".
             max_transformer_length: Maximum length of tokens (words) the transformer model outputs. Words outwide of range(0, max_transformer_length) will be truncated.
             is_inductive_task: Boolean that signifies whether the task is inductive or not (transductive).
-                Make sure to set split_type = 'rows' in the training config when is_inductive_task = True, 
-                as we need to evaluate on nodes that didn't appear during training. split_type='elements', 
+                Make sure to set split_type = 'rows' in the training config when is_inductive_task = True,
+                as we need to evaluate on nodes that didn't appear during training. split_type='elements',
                 then 'transductive', therefore is_inductive_task = False.
-            aggregation_type: Message aggregation type, chosen from ("CONV", "ATTENTION"). 
+            aggregation_type: Message aggregation type, chosen from ("CONV", "ATTENTION").
                 Choosing option "CONV" corresponds to GCN and "ATTENTION" to GAT.
         """
         super().__init__(model_id, variables, save_dir, device)
@@ -209,7 +208,10 @@ class GraphNeuralNetwork(TorchModel):
             self.transformer_model = BertModel.from_pretrained(transformer_model_id)
 
             self.W_source = Linear(node_dim, message_dim)
-            self.W_target = nn.Sequential(Linear(item_meta_dim, message_dim), nn.Dropout(node_update_dropout),)
+            self.W_target = nn.Sequential(
+                Linear(item_meta_dim, message_dim),
+                nn.Dropout(node_update_dropout),
+            )
 
             if corgi_attention_method == "concat":
                 self.W_attention = Parameter(torch.empty(1, 1, 2 * message_dim, device=self._device))
@@ -249,9 +251,9 @@ class GraphNeuralNetwork(TorchModel):
         Args:
             x: Shape (number_of_nodes, node_input_dim). Data to be used for the
                 forward pass. number_of_nodes corresponds to n_user + n_items.
-            sentences_encoded: Transformer output from the text metadata for items. 
+            sentences_encoded: Transformer output from the text metadata for items.
                 Non-item nodes are also assigned with zeros tensors.
-            padding_mask: Mask for the sentences_encoded. 
+            padding_mask: Mask for the sentences_encoded.
             edge_attr: Shape (number_of_sampled_edges, edge_input_dim). Edge attributes
                 used for training. number_of_sampled_edges corresponds to the total number of edges that are
                 connecting the sampled nodes with the specified minibatch size.
@@ -397,7 +399,7 @@ class GraphNeuralNetwork(TorchModel):
             convs: GCN or GAT convolutions for different msg. passing layers.
             message_updates: message updates for different msg. passing layers.
             adjs: Each adj contains a 3-tuple: (edge_index_minibatch, original_edge_index, sizes).
-                In edge_index_minibatch, the indices are adjusted to fit into the sampled minibatch nodes. 
+                In edge_index_minibatch, the indices are adjusted to fit into the sampled minibatch nodes.
                 Sizes is another 2-tuple with the first item being the total number of subgraph nodes and the
                 second item being the number of target nodes.
             edge_dropout: Edge dropout rate set for message passing (during training).
@@ -424,7 +426,11 @@ class GraphNeuralNetwork(TorchModel):
 
             if (level == len(self.convs) - 1) and self.use_transformer:
                 messages_updated, attention = self._message_update_using_transformer(
-                    messages_minibatch, edge_index_minibatch, x, sentences_encoded, padding_mask,
+                    messages_minibatch,
+                    edge_index_minibatch,
+                    x,
+                    sentences_encoded,
+                    padding_mask,
                 )
                 self.message_cache[original_edge_index] = messages_updated.cpu()
                 self.attention[original_edge_index] = attention
@@ -488,7 +494,8 @@ class GraphNeuralNetwork(TorchModel):
             )
             convs.append(conv)
             message_update = nn.Sequential(
-                nn.Linear(self.node_dim + edge_input_dim, self.message_dim), message_update_activation(),
+                nn.Linear(self.node_dim + edge_input_dim, self.message_dim),
+                message_update_activation(),
             )
             message_updates.append(message_update)
         return convs, message_updates
@@ -595,7 +602,13 @@ class GraphNeuralNetwork(TorchModel):
         with torch.no_grad():
             self.eval()
 
-            inference_rand_idx = torch.tensor(np.random.choice(range(edge_index.shape[1]), sample_size, replace=False,))
+            inference_rand_idx = torch.tensor(
+                np.random.choice(
+                    range(edge_index.shape[1]),
+                    sample_size,
+                    replace=False,
+                )
+            )
             if self.prediction_metadata_dim == 0:
                 pred = self.prediction_mlp(
                     torch.cat(
@@ -664,7 +677,7 @@ class GraphNeuralNetwork(TorchModel):
             bs: batch size from the NeighborSampler.
             n_id: node IDs from the NeighborSampler.
             adjs: Each adj contains a 3-tuple: (edge_index_minibatch, original_edge_index, sizes).
-                In edge_index_minibatch, the indices are adjusted to fit into the sampled minibatch nodes. 
+                In edge_index_minibatch, the indices are adjusted to fit into the sampled minibatch nodes.
                 Sizes is another 2-tuple with the first item being the total number of subgraph nodes and the
                 second item being the number of target nodes.
             data: GraphData.
@@ -673,11 +686,11 @@ class GraphNeuralNetwork(TorchModel):
             item_x: Item node init embeddings from pre-trained sequence embedders. It is passed to self.item_x_encoder for
                 dim. reduction and then incorporated in x.
             edge_dropout: Edge dropout rate.
-            sentences_encoded: Transformer output from the text metadata for items. 
+            sentences_encoded: Transformer output from the text metadata for items.
                 Non-item nodes are also assigned with zeros tensors.
-            padding_mask: Mask for the sentences_encoded. 
+            padding_mask: Mask for the sentences_encoded.
             is_train: boolean telling whether to use the training or evaluation mode.
-            is_inductive: boolean telling whether the current computation is for inductive task. 
+            is_inductive: boolean telling whether the current computation is for inductive task.
                 When True, we observe nodes that do not appear in training sets.
         """
         if len(adjs[-1][1]) == 0:
@@ -741,9 +754,9 @@ class GraphNeuralNetwork(TorchModel):
                 forward pass. number_of_nodes corresponds to n_user + n_items.
             item_x: Item node init embeddings from pre-trained sequence embedders. It is passed to self.item_x_encoder for
                 dim. reduction and then incorporated in x.
-            sentences_encoded: Transformer output from the text metadata for items. 
+            sentences_encoded: Transformer output from the text metadata for items.
                 Non-item nodes are also assigned with zeros tensors.
-            padding_mask: Mask for the sentences_encoded. 
+            padding_mask: Mask for the sentences_encoded.
             dataset_type: Whether the inductive task is targeted for test or validation set.
         """
         self.eval()
@@ -815,7 +828,7 @@ class GraphNeuralNetwork(TorchModel):
             n_split: Number of minibatches to split the training nodes into.
             epochs: Number of epochs to train for.
             loss_function: Loss function for training. Currently, only MSE and BCE are supported.
-            neighbor_sampling_sizes: Node sampling sizes for each message passing layer for training. 
+            neighbor_sampling_sizes: Node sampling sizes for each message passing layer for training.
                 List length should be the same as the n_layer.
             inference_at_every: Do inference at every this number with respect to the total iteration.
             edge_dropout: Edge dropout rate set for message passing (during training).

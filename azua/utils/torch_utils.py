@@ -1,21 +1,14 @@
 import random
-from typing import List, Optional, Type, Union, Tuple
+from typing import List, Optional, Tuple, Type, Union
 
 import numpy as np
-from scipy.sparse import issparse, csr_matrix
 import torch
-from torch.nn import Linear, Module, Sequential, Dropout
 import torch.distributions as dist
-from torch.utils.data import (
-    Dataset,
-    DataLoader,
-    TensorDataset,
-    BatchSampler,
-    RandomSampler,
-    SequentialSampler,
-    Sampler,
-)
-from ..utils.data_mask_utils import to_tensors
+from scipy.sparse import csr_matrix, issparse
+from torch.nn import Dropout, Linear, Module, Sequential
+from torch.utils.data import BatchSampler, DataLoader, Dataset, RandomSampler, Sampler, SequentialSampler, TensorDataset
+
+from ..utils.helper_functions import to_tensors
 
 
 def set_random_seeds(seed):
@@ -36,16 +29,16 @@ def set_random_seeds(seed):
 
 def get_torch_device(device_id: Union[int, str, torch.device] = 0) -> torch.device:
     """
-    Get a torch device: 
-        - If CUDA is available will return a CUDA device (optionally can specify it to be the 
+    Get a torch device:
+        - If CUDA is available will return a CUDA device (optionally can specify it to be the
           `device_id`th CUDA device), otherwise "cpu".
         - If 'gpu' is specified, default to the first GPU ('cuda:0')
         - Can request a CPU by providing a device id of 'cpu' or -1.
-    
+
     Args:
-        device_id (int, str, or torch.device): The ID of a CUDA device if more than one available on the system. 
+        device_id (int, str, or torch.device): The ID of a CUDA device if more than one available on the system.
         Defaults to 0, which means GPU if it's available.
-    
+
     Returns:
         :obj:`torch.device`: The available device.
     """
@@ -177,7 +170,7 @@ def create_dataloader(
     device: torch.device = torch.device("cpu"),
 ) -> DataLoader:
     """
-    Device specifies the device on which the TensorDataset is created. This should be CPU in most cases, as we 
+    Device specifies the device on which the TensorDataset is created. This should be CPU in most cases, as we
     typically do not wish to store the whole dataset on the GPU.
     """
     assert len(arrays) > 0
@@ -218,7 +211,10 @@ class SparseTensorDataset(Dataset):
     """
 
     def __init__(
-        self, *matrices: Tuple[csr_matrix, ...], dtype: torch.dtype = torch.float, device: torch.device,
+        self,
+        *matrices: Tuple[csr_matrix, ...],
+        dtype: torch.dtype = torch.float,
+        device: torch.device,
     ):
         self._matrices = matrices
         self._dtype = dtype
@@ -226,7 +222,11 @@ class SparseTensorDataset(Dataset):
 
     def __getitem__(self, idx):
         data_rows = tuple(
-            torch.as_tensor(matrix[idx, :].toarray().squeeze(axis=0), dtype=self._dtype, device=self._device,)
+            torch.as_tensor(
+                matrix[idx, :].toarray().squeeze(axis=0),
+                dtype=self._dtype,
+                device=self._device,
+            )
             for matrix in self._matrices
         )
         return data_rows
@@ -286,11 +286,13 @@ class LinearModel:
 
 
 class MultiROFFeaturiser:
-    def __init__(self, rff_n_features: int, lengthscale: Union[int, float, List[float], Tuple[float, ...]] = (1e-1, 0.5)):
+    def __init__(
+        self, rff_n_features: int, lengthscale: Union[int, float, List[float], Tuple[float, ...]] = (1e-1, 0.5)
+    ):
         """
-        Random orthogonal fourier featuriser (https://proceedings.neurips.cc/paper/2016/file/53adaf494dc89ef7196d73636eb2451b-Paper.pdf) implementing sk-learn style fit and fit transform methods. 
+        Random orthogonal fourier featuriser (https://proceedings.neurips.cc/paper/2016/file/53adaf494dc89ef7196d73636eb2451b-Paper.pdf) implementing sk-learn style fit and fit transform methods.
         Linear regression with RFF features approximates GP regression with an RBF kernel.
-        
+
         Args:
             rff_n_features: size of the feature expansion
             lengthscale: of the equivalent RBF kernel if set to a float or int. If a 2 float tuple is specified,

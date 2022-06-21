@@ -1,22 +1,21 @@
-from ..datasets.dataset import CausalDataset
-from dependency_injector.wiring import Provide, inject
-from dataclasses import dataclass
-from .azua_context import AzuaContext
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
-from ..utils.io_utils import save_json, save_txt
+import os
+import shutil
+import time
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from dependency_injector.wiring import Provide, inject
+
 from ..experiment.steps.active_learning_step import run_active_learning_main
-from ..experiment.steps.train_step import run_train_main
+from ..models.transformer_imputer import TransformerImputer
 from ..experiment.steps.eval_step import run_eval_main
 from ..experiment.steps.step_func import load_data, preprocess_configs
-from ..experiment.steps.eval_step import eval_treatment_effects, eval_causal_discovery
+from ..experiment.steps.train_step import run_train_main
+from ..models.imodel import IModelForImputation, IModelForObjective
 from ..models.models_factory import load_model
-from ..models.imodel import IModelForObjective, IModelForImputation, IModelForCausalInference, IModelForInterventions
-from ..models.deci.deci import DECI
-from ..models.transformer_imputer import TransformerImputer
-import os
-import time
-import shutil
+from ..utils.io_utils import save_json, save_txt
+from .azua_context import AzuaContext
 
 
 @dataclass
@@ -49,6 +48,7 @@ class ExperimentArguments:
     aml_tags: Dict[str, Any]
     logger_level: str
     eval_likelihood: bool = True
+    conversion_type: str = "full_time"
     azua_context: AzuaContext = Provide[AzuaContext]
 
 
@@ -136,23 +136,6 @@ def run_single_seed_experiment(args: ExperimentArguments):
             seed=args.dataset_seed if isinstance(args.dataset_seed, int) else args.dataset_seed[0],
             metrics_logger=metrics_logger,
             impute_train_data=impute_train_data,
-        )
-
-    # Evaluate causal discovery
-    if args.causal_discovery:
-        assert isinstance(model, IModelForCausalInference)
-        causal_model = cast(IModelForCausalInference, model)
-        eval_causal_discovery(logger, dataset, causal_model, metrics_logger)
-
-    # Treatment effect estimation
-    if args.treatment_effects:
-        if not isinstance(model, IModelForInterventions):
-            raise ValueError("This model class does not support treatment effect estimation.")
-        if not isinstance(dataset, CausalDataset):
-            raise ValueError("This dataset type does not support treatment effect estimation.")
-        preprocess_data_for_treatment = isinstance(model, DECI)
-        eval_treatment_effects(
-            logger, dataset, model, metrics_logger, args.eval_likelihood, preprocess_data_for_treatment
         )
 
     # Active learning

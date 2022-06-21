@@ -1,4 +1,4 @@
-from ..models.graph_neural_network import GraphNeuralNetwork
+from .graph_neural_network import GraphNeuralNetwork
 
 
 class GraphSAGE(GraphNeuralNetwork):
@@ -10,7 +10,7 @@ class GraphSAGE(GraphNeuralNetwork):
     W. L. Hamilton, R. Ying, and J. Leskovec.
     In NeurIPS, 2017.
 
-    GraphSAGE extends GCN by allowing the model to be trained on the part of the graph, 
+    GraphSAGE extends GCN by allowing the model to be trained on the part of the graph,
     making the model to be used in inductive settings.
     """
 

@@ -1,11 +1,11 @@
-from typing import List, Optional, Tuple, Dict, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 
-from ..utils.training_objectives import kl_divergence
 from ..utils.data_mask_utils import add_to_data, add_to_mask
-from ..objectives.eddi import EDDIObjective
+from ..utils.training_objectives import kl_divergence
+from .eddi import EDDIObjective
 
 
 class EDDIRowwiseObjective(EDDIObjective):
@@ -31,7 +31,7 @@ class EDDIRowwiseObjective(EDDIObjective):
 
         Args:
             data (shape (batch_size, proc_feature_count)): processed, observed data.
-            data_mask (shape (batch_size, proc_feature_count)): processed mask where 1 is observed in the 
+            data_mask (shape (batch_size, proc_feature_count)): processed mask where 1 is observed in the
                 underlying data, 0 is missing.
             obs_mask (shape (batch_size, proc_feature_count)): indicates which
                 features have already been observed (i.e. which to condition the information gain calculations on).
@@ -46,7 +46,7 @@ class EDDIRowwiseObjective(EDDIObjective):
         assert obs_mask.shape == data.shape
         self._model.set_evaluation_mode()
         num_rows, feature_count = data.shape
-        num_query_groups = len(self._model.variables.query_group_names)
+        num_groups = len(self._model.variables.group_names)
 
         # Here we perform the EDDI calculation for each data row separately, and batch the computation over all
         # query groups that can be queried (i.e. they contain at least one feature that is unobserved so far during
@@ -91,8 +91,8 @@ class EDDIRowwiseObjective(EDDIObjective):
                 # Reveal imputed values for each observable query group on a separate row
                 unobs_reward_idxs = []
                 unobs_group_idxs = []
-                # TODO maybe rename to group_idx and group_var_idxs? and query_group_idxs -> query_group_var_idxs
-                for reward_idx, group_idxs in enumerate(self._model.variables.query_group_idxs):
+                # TODO maybe rename to group_idx and group_var_idxs? and group_idxs -> group_var_idxs
+                for reward_idx, group_idxs in enumerate(self._model.variables.group_idxs):
 
                     def flatten(lists):
                         # Flatten proc_cols for continuous and binary unproc_cols, since they will be of form [[1], [2], ...]
@@ -104,7 +104,7 @@ class EDDIRowwiseObjective(EDDIObjective):
                         unobs_reward_idxs.append(reward_idx)
                         unobs_group_idxs.append(group_idxs)
 
-                num_unobs_query_groups = len(unobs_reward_idxs)
+                num_unobs_groups = len(unobs_reward_idxs)
 
                 # Add imputed value for each feature to a copy of the data tensor, and reveal in a corresponding copy of
                 # the mask.
@@ -119,27 +119,27 @@ class EDDIRowwiseObjective(EDDIObjective):
                 q_o = self._model.encode(data_x_o, mask_x_o)
 
                 # Repeat by number of query variables, each contiguous block of rows corresponds to a single MC sample.
-                # Shape (sample_count * num_query_groups, latent_dim)
+                # Shape (sample_count * num_groups, latent_dim)
                 q_o = (
-                    torch.repeat_interleave(q_o[0], num_unobs_query_groups, dim=0),
-                    torch.repeat_interleave(q_o[1], num_unobs_query_groups, dim=0),
+                    torch.repeat_interleave(q_o[0], num_unobs_groups, dim=0),
+                    torch.repeat_interleave(q_o[1], num_unobs_groups, dim=0),
                 )
 
                 # Stack and reorder so that the samples are on the same dimension as the variables, and the samples for
                 # each variable are grouped together
-                # Shape (sample_count * num_query_groups, feature_count)
+                # Shape (sample_count * num_groups, feature_count)
                 if len(data_x_i_o_list) > 0:
                     data_x_i_o = torch.stack(data_x_i_o_list, dim=0).reshape(
-                        self._sample_count * num_unobs_query_groups, feature_count
+                        self._sample_count * num_unobs_groups, feature_count
                     )
                     mask_x_i_o = torch.stack(mask_x_i_o_list, dim=0).reshape(
-                        self._sample_count * num_unobs_query_groups, feature_count
+                        self._sample_count * num_unobs_groups, feature_count
                     )
 
-                    # Shape (sample_count * num_query_groups, latent_dim)
+                    # Shape (sample_count * num_groups, latent_dim)
                     q_i_o = self._model.encode(data_x_i_o, mask_x_i_o)
 
-                    # Shape (sample_count * num_query_groups)
+                    # Shape (sample_count * num_groups)
                     kl1 = kl_divergence(q_i_o, q_o)
 
                     # TODO double check this
@@ -147,42 +147,42 @@ class EDDIRowwiseObjective(EDDIObjective):
                     if len(phi_idxs) > 0:
                         # Additionally reveal imputed values for target variables in order to calculate p(z|x_o, x_phi) and
                         # p(z|x_o, x_i, x_phi)
-                        # Shape (sample_count * num_unobs_query_groups, feature_count)
+                        # Shape (sample_count * num_unobs_groups, feature_count)
                         data_x_o_phi = add_to_data(self._model.variables, data_x_o, imputations, phi_idxs)
                         mask_x_o_phi = add_to_mask(self._model.variables, mask_x_o, phi_idxs)
 
-                        # Shape (sample_count * num_unobs_query_groups, feature_count)
+                        # Shape (sample_count * num_unobs_groups, feature_count)
                         data_x_i_o_phi = add_to_data(
-                            self._model.variables, data_x_i_o, imputations.repeat(num_unobs_query_groups, 1), phi_idxs
+                            self._model.variables, data_x_i_o, imputations.repeat(num_unobs_groups, 1), phi_idxs
                         )
                         mask_i_o_phi = add_to_mask(self._model.variables, mask_x_i_o, phi_idxs)
 
                         q_o_phi = self._model.encode(data_x_o_phi, mask_x_o_phi)
-                        # Shape (sample_count * num_unobs_query_groups, latent_dim), samples grouped togethe
+                        # Shape (sample_count * num_unobs_groups, latent_dim), samples grouped togethe
                         q_o_phi = (
-                            q_o_phi[0].repeat(num_unobs_query_groups, 1),
-                            q_o_phi[1].repeat(num_unobs_query_groups, 1),
+                            q_o_phi[0].repeat(num_unobs_groups, 1),
+                            q_o_phi[1].repeat(num_unobs_groups, 1),
                         )
 
-                        # Shape (sample_count * num_unobs_query_groups, latent_dim)
+                        # Shape (sample_count * num_unobs_groups, latent_dim)
                         q_i_o_phi = self._model.encode(data_x_i_o_phi, mask_i_o_phi)
 
-                        # Shape (sample_count * num_unobs_query_groups), samples grouped together
+                        # Shape (sample_count * num_unobs_groups), samples grouped together
                         kl2 = kl_divergence(q_i_o_phi, q_o_phi)
 
                     else:
-                        # Shape (sample_count * num_unobs_query_groups), samples grouped together
+                        # Shape (sample_count * num_unobs_groups), samples grouped together
                         kl2 = torch.zeros_like(kl1)
 
-                    # Shape (sample_count * num_unobs_query_groups), samples grouped together
+                    # Shape (sample_count * num_unobs_groups), samples grouped together
                     row_unobs_rewards = (kl1 - kl2).cpu().numpy()
 
-                    # Shape (sample_count, num_unobs_query_groups), with the samples for each variable on a separate row
-                    row_unobs_rewards = np.reshape(row_unobs_rewards, (num_unobs_query_groups, self._sample_count))
-                    # Shape (num_unobs_query_groups, )
+                    # Shape (sample_count, num_unobs_groups), with the samples for each variable on a separate row
+                    row_unobs_rewards = np.reshape(row_unobs_rewards, (num_unobs_groups, self._sample_count))
+                    # Shape (num_unobs_groups, )
                     row_unobs_rewards = np.mean(row_unobs_rewards, axis=1)
 
-                row_rewards = np.full(num_query_groups, np.nan)
+                row_rewards = np.full(num_groups, np.nan)
 
                 for i, j in enumerate(unobs_reward_idxs):
                     row_rewards[j] = row_unobs_rewards[i]
@@ -190,7 +190,7 @@ class EDDIRowwiseObjective(EDDIObjective):
                 # Add diffs for observed query groups to make shape correct
                 rewards_list.append(row_rewards)
 
-            # Shape (num_rows, num_query_groups)
+            # Shape (num_rows, num_groups)
             rewards = np.vstack(rewards_list)
 
             if not as_array:

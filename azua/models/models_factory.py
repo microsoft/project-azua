@@ -1,13 +1,15 @@
 import os
-from typing import Union, Dict, Any, Type
+from typing import Any, Dict, Type, Union
 from uuid import uuid4
 
 from ..datasets.variables import Variables
-from ..models.model import Model
-from ..models.point_net import PointNet, SparsePointNet
-from ..models.set_encoder_base_model import SetEncoderBaseModel
-from ..models.transformer_set_encoder import TransformerSetEncoder
 from ..utils.factory_utils import get_named_subclass
+from .model import Model
+from .point_net import PointNet, SparsePointNet
+from .set_encoder_base_model import SetEncoderBaseModel
+from .transformer_set_encoder import TransformerSetEncoder
+
+MODEL_BASELINE_DIRS = ["azua/models", "azua/baselines"]
 
 
 def create_model(
@@ -40,7 +42,7 @@ def create_model(
     save_dir = os.path.join(models_dir, model_id)
     os.makedirs(save_dir)
 
-    model_class = get_named_subclass(["models", "baselines"], Model, model_name)
+    model_class = get_named_subclass(MODEL_BASELINE_DIRS, Model, model_name)
 
     return model_class.create(model_id, save_dir, variables, model_config_dict, device=device)
 
@@ -60,7 +62,7 @@ def load_model(model_id: str, models_dir: str, device: Union[str, int]) -> Model
     with open(model_type_filepath) as f:
         model_name = f.read()
 
-    model_class = get_named_subclass(["models", "baselines"], Model, model_name)
+    model_class = get_named_subclass(MODEL_BASELINE_DIRS, Model, model_name)
 
     return model_class.load(model_id, models_dir, device)
 

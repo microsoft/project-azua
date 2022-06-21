@@ -1,27 +1,27 @@
-from typing import List, Optional, Tuple, Dict, Union, cast
+from typing import Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
 import torch
 
-from ..models.transformer_imputer import TransformerImputer
-from ..objectives.eddi import EDDIObjective
 from ..utils.data_mask_utils import add_to_data, add_to_mask
+from ..models.transformer_imputer import TransformerImputer
+from .eddi import EDDIObjective
 
 
 class VarianceObjective(EDDIObjective):
     """
     Variance objective: select the feature x_i that minimises expected variance in the target variable y after observing x_i.
-    
-    The variance of P(y|x_i, x_o) is, by definition, the expected squared error in y if you use E(y|x_i, x_o) as a 
+
+    The variance of P(y|x_i, x_o) is, by definition, the expected squared error in y if you use E(y|x_i, x_o) as a
     prediction of y. Thus, this objective directly targets small mean square error in y.
 
     Limitations:
-        
-    1) This objective uses some strong, and generally wrong assumptions: 
+
+    1) This objective uses some strong, and generally wrong assumptions:
     - the conditional distribution of each feature given the others is Gaussian.
-    - the model gives well-calibrated variance estimates.    
-    
-    2) This objective is not currently compatible with PVAE. To use it with PVAE, we would need to implement a method 
+    - the model gives well-calibrated variance estimates.
+
+    2) This objective is not currently compatible with PVAE. To use it with PVAE, we would need to implement a method
     that returns *marginal* variance of the target variable (not the same as decoder_variance returned by PVAE.reconstruct). For each sampled value of x_i,
     you would need to take multiple samples of z from q(z|x_i, x_o) and corresponding values of p(y|z). Then, if PVAE uses a fixed decoder variance,
     the marginal variance of y given x_i is something like the between-samples variance of E(y|z) plus the decoder variance.
@@ -58,7 +58,7 @@ class VarianceObjective(EDDIObjective):
 
         Args:
             data (shape (batch_size, proc_feature_count)): processed, observed data.
-            data_mask (shape (batch_size, proc_feature_count)): processed mask where 1 is observed in the 
+            data_mask (shape (batch_size, proc_feature_count)): processed mask where 1 is observed in the
                 underlying data, 0 is missing.
             obs_mask (shape (batch_size, proc_feature_count)): indicates which
                 features have already been observed (i.e. which to condition the information gain calculations on).
@@ -95,7 +95,7 @@ class VarianceObjective(EDDIObjective):
             current_var = self._calc_sum_target_variances(data, mask)
 
             rewards_list = []
-            for group_idxs in self._model.variables.query_group_idxs:
+            for group_idxs in self._model.variables.group_idxs:
                 if all(not is_variable_to_observe[idx] for idx in group_idxs):
                     diff = torch.full((batch_size,), np.nan)
                 else:
@@ -130,7 +130,7 @@ class VarianceObjective(EDDIObjective):
     def _calc_sum_target_variances(self, data: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """
         Calculate the sum of variances in target dimensions for given input.
-    
+
         Args:
             data (torch.Tensor): shape (batch_size, input_dim)
             mask (torch.Tensor): shape (batch_size, input_dim)

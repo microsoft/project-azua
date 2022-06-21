@@ -1,4 +1,4 @@
-from ..models.graph_neural_network import GraphNeuralNetwork
+from .graph_neural_network import GraphNeuralNetwork
 
 
 class CoRGi(GraphNeuralNetwork):
@@ -8,9 +8,9 @@ class CoRGi(GraphNeuralNetwork):
     J. Kim, A. Lamb, S. Woodhead, S. Peyton Jones, C. Zhang, M. Allamanis.
     In submission, 2021
 
-    CoRGi is a GNN model that considers the rich data within nodes in the context of their neighbors. 
+    CoRGi is a GNN model that considers the rich data within nodes in the context of their neighbors.
     This is achieved by endowing CORGI’s message passing with a personalized attention
-    mechanism over the content of each node. This way, CORGI assigns user-item-specific 
+    mechanism over the content of each node. This way, CORGI assigns user-item-specific
     attention scores with respect to the words that appear in items.
     """
 

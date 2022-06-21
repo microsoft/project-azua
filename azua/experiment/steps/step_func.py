@@ -1,10 +1,11 @@
 # This is temporary file to keep logic (as functions), which probably
 # shouldn't be steps on their own, but rather be part of each step (i.e. dataset loading)
-from ...datasets.sparse_csv_dataset_loader import SparseCSVDatasetLoader
-from ...datasets.datasets_factory import create_dataset_loader
 import os
-from ...datasets.dataset import Dataset, SparseDataset, CausalDataset
 from typing import Any, Dict, Tuple, Union
+
+from ...datasets.sparse_csv_dataset_loader import SparseCSVDatasetLoader
+from ...datasets.dataset import Dataset, SparseDataset
+from ...datasets.datasets_factory import create_dataset_loader
 
 
 def load_data(
@@ -21,10 +22,7 @@ def load_data(
     split_type = dataset_config.get("split_type", "rows")
     negative_sample = dataset_config.get("negative_sample", False)
     dataset_format = dataset_config.get("dataset_format", "csv")
-    if dataset_name == "temporal_causal_csv":
-        timeseries_column_index = dataset_config.get("timeseries_column_index", 0)
-    else:
-        timeseries_column_index = None
+    timeseries_column_index = None
 
     dataset_loader = create_dataset_loader(data_dir=data_dir, dataset_name=dataset_name, dataset_format=dataset_format)
     max_num_rows = (
@@ -57,7 +55,7 @@ def preprocess_configs(
     model_config: Dict[str, Any],
     train_hypers: Dict[str, Any],
     model_type: str,
-    dataset: Union[Dataset, SparseDataset, CausalDataset],
+    dataset: Union[Dataset, SparseDataset],
     data_dir: str,
     tiny: bool,
 ):
@@ -66,8 +64,6 @@ def preprocess_configs(
         if model_type in ["vaem", "vaem_predictive", "transformer_encoder_vaem"]:
             train_hypers["marginal_epochs"] = 2
             train_hypers["dep_epochs"] = 2
-        elif model_type in ["deci", "deci_gaussian", "deci_spline"]:
-            train_hypers["max_steps_auglag"] = 2
         else:
             train_hypers["epochs"] = 2
 

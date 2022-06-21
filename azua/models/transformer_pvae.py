@@ -1,17 +1,22 @@
 from typing import Optional, Tuple
 
 import torch
+from torch.nn import Sigmoid
+
 from ..datasets.variables import Variables
-from ..models.decoder import FeaturewiseActivation
 from ..models.feature_embedder import FeatureEmbedder
-from ..models.pvae_base_model import PVAEBaseModel
 from ..models.torch_training import train_model
 from ..models.torch_training_types import LossConfig, VAELossResults
-from ..models.torch_vae import TorchVAE
 from ..models.transformer_set_encoder import ISAB, SAB, SetTransformer
-from ..utils.exceptions import ONNXNotImplemented
-from ..utils.training_objectives import get_input_and_scoring_processed_masks, kl_divergence, negative_log_likelihood
-from torch.nn import Sigmoid
+from ..models.torch_model import ONNXNotImplemented
+from ..utils.training_objectives import (
+    get_input_and_scoring_processed_masks,
+    kl_divergence,
+    negative_log_likelihood,
+)
+from .decoder import FeaturewiseActivation
+from .pvae_base_model import PVAEBaseModel
+from .torch_vae import TorchVAE
 
 
 class TransformerPVAE(PVAEBaseModel):
@@ -71,7 +76,11 @@ class TransformerPVAE(PVAEBaseModel):
 
         self.input_dim = variables.num_processed_cols
         self._feature_embedder = FeatureEmbedder(
-            input_dim=self.input_dim, embedding_dim=embedding_dim, metadata=None, device=device, multiply_weights=False,
+            input_dim=self.input_dim,
+            embedding_dim=embedding_dim,
+            metadata=None,
+            device=device,
+            multiply_weights=False,
         )
         self._feature_embedding_dim = self._feature_embedder.output_dim
         self._transformer_embedding_dim = transformer_embedding_dim
@@ -128,7 +137,7 @@ class TransformerPVAE(PVAEBaseModel):
         Calculate tensor loss on a single batch of data.
         Args:
             loss_config (LossConfig): Parameters that specify how the loss is calculated.
-            input_tensors: Single batch of data and mask, given as (data, mask). The mask indicates 
+            input_tensors: Single batch of data and mask, given as (data, mask). The mask indicates
                 which data is present. 1 is observed, 0 is unobserved.
 
         """
@@ -207,7 +216,7 @@ class TransformerPVAE(PVAEBaseModel):
 class TransformerVAE(TorchVAE):
     """
     Transformer VAE
-    
+
     A VAE that has a transformer as an encoder and a decoder.
 
     See the Set Transformer model https://arxiv.org/abs/1810.00825 for more details
@@ -313,7 +322,7 @@ class TransformerVAE(TorchVAE):
 class TransformerEncoder(torch.nn.Module):
     """
     Transformer encoder
-    
+
     The TransformerEncoder module passes features through a Transformer module
     and reads out latent distribution means and variances via a single linear layer.
 
@@ -357,7 +366,8 @@ class TransformerEncoder(torch.nn.Module):
             elementwise_transform_type=elementwise_transform_type,
         )
         self._mean_logvar_readout = torch.nn.Linear(
-            in_features=self._transformer_embedding_dim, out_features=2 * self._transformer_embedding_dim,
+            in_features=self._transformer_embedding_dim,
+            out_features=2 * self._transformer_embedding_dim,
         )
 
     def forward(self, data: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -391,7 +401,7 @@ class TransformerEncoder(torch.nn.Module):
 class TransformerDecoder(torch.nn.Module):
     """
     Transformer decoder
-    
+
     The TransformerDecoder module that passes features through a Transformer module
     and reads out reconstructed means and variances through a single linear layer.
 

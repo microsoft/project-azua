@@ -45,9 +45,9 @@ class SparseCSVDatasetLoader(DatasetLoader):
             random_state: An integer or a tuple of integers to be used as the splitting random state.
             max_num_rows: Maximum number of rows to include when reading data files.
             negative_sample: Whether to perform negative sampling after loading the dataset. Negative sampling requires
-                a file negative_sampling_levels.csv in the dataset folder, and negative samples for each row will be 
+                a file negative_sampling_levels.csv in the dataset folder, and negative samples for each row will be
                 drawn from features of a greater level than all those observed in the row.
-            split_type: Manner in which the dataset has been split: "rows" indicates a split by rows of the matrix, 
+            split_type: Manner in which the dataset has been split: "rows" indicates a split by rows of the matrix,
                 "elements" indicates a split by individual elements of the matrix, so that different elements of a row
                 can appear in different data splits.
         Returns:
@@ -109,9 +109,9 @@ class SparseCSVDatasetLoader(DatasetLoader):
         Args:
             max_num_rows: Maximum number of rows to include when reading data files.
             negative_sample: Whether to perform negative sampling after loading the dataset. Negative sampling requires
-                a file negative_sampling_levels.csv in the dataset folder, and negative samples for each row will be 
+                a file negative_sampling_levels.csv in the dataset folder, and negative samples for each row will be
                 drawn from features of a greater level than all those observed in the row.
-            split_type: Manner in which the dataset has been split: "rows" indicates a split by rows of the matrix, 
+            split_type: Manner in which the dataset has been split: "rows" indicates a split by rows of the matrix,
                 "elements" indicates a split by individual elements of the matrix, so that different elements of a row
                 can appear in different data splits.
         Returns:
@@ -272,11 +272,7 @@ class SparseCSVDatasetLoader(DatasetLoader):
         Read the list of dicts to generate a sparse data and mask matrices.
         Drop the columns that were not observed.
         Args:
-<<<<<<< HEAD
-            records: List of dicts, where each dict is one data row represented as a mapping from columns
-=======
             dicts: List of dicts, where each dict is one data row represented as a mapping from columns
->>>>>>> master
                 to values.
             used_cols: A sorted list of observed columns that were used.
         Returns:
@@ -307,7 +303,7 @@ class SparseCSVDatasetLoader(DatasetLoader):
     ) -> Tuple[csr_matrix, csr_matrix, List[int], List[int]]:
         """
         If not given, use the sparse data matrix to generate the list of column ids with no observed values.
-        Drop the columns and rows that were not observed. 
+        Drop the columns and rows that were not observed.
         Args:
             data: Sparse data matrix.
             used_cols: A sorted list of observed columns that were used.

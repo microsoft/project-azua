@@ -1,7 +1,7 @@
 import ast
 import logging
 import os
-from typing import Dict, Optional, Tuple, Union, Any, cast, List
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import numpy as np
 import pandas as pd
@@ -12,7 +12,7 @@ from torch import Tensor
 from torch.nn.functional import one_hot
 from torch_geometric.data import Data
 
-from ..datasets.dataset import SparseDataset, GraphDataset
+from ..datasets.dataset import GraphDataset, SparseDataset
 from ..datasets.sparse_csv_dataset_loader import SparseCSVDatasetLoader
 
 logger = logging.getLogger(__name__)
@@ -114,7 +114,7 @@ class GNNSparseCSVDatasetLoader(SparseCSVDatasetLoader):
         Args:
             dataset: SparseDataset containing train, test, val data with user, item entries.
             model_config: model_config file for node_init, item_metadata_path.
-        
+
         Returns:
             torch_geometric.data.Data
         """
@@ -258,16 +258,36 @@ class GNNSparseCSVDatasetLoader(SparseCSVDatasetLoader):
             x = torch.randn(int(n_user + n_item + n_meta), int(model_config["node_input_dim"]))
 
         edge_index, num_edges_meta, num_edges_tree = self._df2edge_index(
-            all_df, n_user, n_item, node_init, item_metadata_df, meta_nodes_to_index,
+            all_df,
+            n_user,
+            n_item,
+            node_init,
+            item_metadata_df,
+            meta_nodes_to_index,
         )
         train_edge_index, num_edges_meta, num_edges_tree = self._df2edge_index(
-            train_df, n_user, n_item, node_init, item_metadata_df, meta_nodes_to_index,
+            train_df,
+            n_user,
+            n_item,
+            node_init,
+            item_metadata_df,
+            meta_nodes_to_index,
         )
         test_edge_index, num_edges_meta, num_edges_tree = self._df2edge_index(
-            test_df, n_user, n_item, node_init, item_metadata_df, meta_nodes_to_index,
+            test_df,
+            n_user,
+            n_item,
+            node_init,
+            item_metadata_df,
+            meta_nodes_to_index,
         )
         val_edge_index, num_edges_meta, num_edges_tree = self._df2edge_index(
-            val_df, n_user, n_item, node_init, item_metadata_df, meta_nodes_to_index,
+            val_df,
+            n_user,
+            n_item,
+            node_init,
+            item_metadata_df,
+            meta_nodes_to_index,
         )
 
         edge_attr = torch.tensor(np.expand_dims(np.array(all_df)[:, 2], -1))
@@ -432,7 +452,9 @@ class GNNSparseCSVDatasetLoader(SparseCSVDatasetLoader):
         return data
 
     def _create_df_with_recalibrated_row_idxs(
-        self, data_and_mask: Tuple[csr_matrix, csr_matrix], idxs: List[int],
+        self,
+        data_and_mask: Tuple[csr_matrix, csr_matrix],
+        idxs: List[int],
     ) -> Optional[DataFrame]:
         """
         Create train, test, or val dataframe with recalibrated row idxs.
@@ -443,7 +465,7 @@ class GNNSparseCSVDatasetLoader(SparseCSVDatasetLoader):
         Args:
             data_and_mask: data and mask tuples that originally appear in Dataset, e.g., train_data_and_mask
             idxs: train, test, val idxs that origianlly appear in SparseDataset, e.g., dataset.data_split["train_idxs"]
-        
+
         Returns:
             Train, test, or val dataframe with recalibrated row indexes if we have the data, else, return None.
         """
@@ -457,7 +479,8 @@ class GNNSparseCSVDatasetLoader(SparseCSVDatasetLoader):
             map_coo_row_to_idxs = {v1: v2 for v1, v2 in zip(np.sort(np.unique(coo.row)), idxs)}
             df_row = np.vectorize(map_coo_row_to_idxs.get)(coo.row)
             df = pd.DataFrame(
-                {"row": df_row, "col": coo.col, "val": coo.data.astype(np.float64)}, columns=["row", "col", "val"],
+                {"row": df_row, "col": coo.col, "val": coo.data.astype(np.float64)},
+                columns=["row", "col", "val"],
             )
             return df
 
@@ -495,10 +518,10 @@ class GNNSparseCSVDatasetLoader(SparseCSVDatasetLoader):
             n_user, n_item: Number of users and items.
             node_init: Node initialization options.
             item_metadata_df: Topic metadata DataFrame that will be used as additional nodes when node_init
-                            is set to: topic_sep. 
+                            is set to: topic_sep.
             meta_nodes_to_index: mapping of the metadata nodes graph node indices when node_init = topic_sep.
             meta_colname: column name for metadata lists in item_metadata_df.
-        
+
         Returns:
             edge_index Tensor
         """
@@ -559,7 +582,7 @@ class GNNSparseCSVDatasetLoader(SparseCSVDatasetLoader):
         Args:
             n_item: number of items in the bypartite graph.
             topic_metadata_df: Topic metadata DataFrame that will be used as additional nodes when node_init
-                            is set to: topic_sep. 
+                            is set to: topic_sep.
 
         Returns:
             node embeddings initialized with metadata.
@@ -590,7 +613,7 @@ class GNNSparseCSVDatasetLoader(SparseCSVDatasetLoader):
 
     def _expand_df_using_edge_metadata(self, df: DataFrame, dataset_type: str):
         """
-        Expand all, train, test, val datasets with edge metadata information such as 
+        Expand all, train, test, val datasets with edge metadata information such as
         the timestamps (ts) and user confidences (cf).
 
         Args:

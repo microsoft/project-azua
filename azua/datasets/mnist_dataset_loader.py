@@ -1,12 +1,12 @@
+import logging
+from typing import Optional, Tuple, Union
+
 import numpy as np
 from torchvision.datasets import MNIST
-from typing import Optional, Tuple, Union
-import logging
 
 from ..datasets.dataset import Dataset
 from ..datasets.dataset_loader import DatasetLoader
 from ..datasets.variables import Variables
-
 from ..utils.helper_functions import maintain_random_state
 from ..utils.torch_utils import set_random_seeds
 
@@ -33,9 +33,9 @@ class MNISTDatasetLoader(DatasetLoader):
         """
 
         The canonical MNIST split is a two-way train/test split. In order to make our results comparable with others,
-        we always use the canonical test set, but we generate different random splits of the canonical training set 
+        we always use the canonical test set, but we generate different random splits of the canonical training set
         into train and val.
-        
+
         Args:
             test_frac: Ignored (allowed for consistency of interface with other dataset loaders).
             val_frac: Fraction of data to put in the validation set.
